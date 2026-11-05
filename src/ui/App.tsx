@@ -1,0 +1,140 @@
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { catalog, courseMap } from '../data/catalog';
+import type { Course, Semester } from '../data/types';
+import { academicHours, totalCredits } from '../logic/load';
+import { computeMisery, pickTitle } from '../logic/misery';
+import { collectMeetings, collectUnscheduled, findConflicts } from '../logic/schedule';
+import { loadPlan, loadTheme, savePlan, saveTheme, type Theme } from '../state/storage';
+import { CoursePanel } from './CoursePanel';
+import { Header } from './Header';
+import { planReducer } from './planReducer';
+import { StatsBar } from './StatsBar';
+import { WeekGrid } from './WeekGrid';
+
+type MobileTab = 'courses' | 'week';
+
+export function App() {
+  const [plan, dispatch] = useReducer(planReducer, undefined, loadPlan);
+  const [theme, setTheme] = useState<Theme>(loadTheme);
+  const [semester, setSemester] = useState<Semester>('A');
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [tab, setTab] = useState<MobileTab>('courses');
+
+  useEffect(() => savePlan(plan), [plan]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    saveTheme(theme);
+  }, [theme]);
+
+  // Выбранный курс мог быть удалён.
+  const activeCourse = activeId && plan.courses.some((c) => c.courseId === activeId)
+    ? courseMap.get(activeId) ?? null
+    : null;
+
+  const meetings = useMemo(() => collectMeetings(plan, courseMap, semester), [plan, semester]);
+  const unscheduled = useMemo(() => collectUnscheduled(plan, courseMap, semester), [plan, semester]);
+  const conflicts = useMemo(() => findConflicts(meetings), [meetings]);
+  const misery = useMemo(() => computeMisery(meetings), [meetings]);
+  const title = pickTitle(misery, meetings.length);
+  const hours = academicHours(meetings);
+  const credits = totalCredits(plan, courseMap);
+
+  /** Включить режим выбора групп курса; переключает семестр на семестр курса. */
+  const startPicking = useCallback((course: Course) => {
+    setActiveId(course.courseId);
+    if (course.term !== 'year') setSemester(course.term);
+    setTab('week');
+  }, []);
+
+  const addCourse = useCallback(
+    (course: Course) => {
+      dispatch({ kind: 'add', course });
+      startPicking(course);
+    },
+    [startPicking],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setActiveId(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  return (
+    <div className="app" data-tab={tab}>
+      <Header
+        metadata={catalog.metadata}
+        theme={theme}
+        onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+      />
+
+      <main className="layout">
+        <section className="pane pane-courses" aria-label="Courses">
+          <CoursePanel
+            catalog={catalog}
+            plan={plan}
+            activeId={activeCourse?.courseId ?? null}
+            onAdd={addCourse}
+            onRemove={(courseId) => dispatch({ kind: 'remove', courseId })}
+            onPick={startPicking}
+            onClear={() => dispatch({ kind: 'clear' })}
+          />
+        </section>
+
+        <section className="pane pane-week" aria-label="Week">
+          <StatsBar
+            semester={semester}
+            misery={misery}
+            title={title}
+            hours={hours}
+            credits={credits}
+            conflicts={conflicts}
+          />
+          <WeekGrid
+            plan={plan}
+            courses={courseMap}
+            semester={semester}
+            onSemester={setSemester}
+            meetings={meetings}
+            conflicts={conflicts}
+            unscheduled={unscheduled}
+            activeCourse={activeCourse}
+            onActivate={(courseId) => {
+              const course = courseMap.get(courseId);
+              if (course) setActiveId(course.courseId);
+            }}
+            onToggleSection={(course, sectionNumber) =>
+              dispatch({ kind: 'toggle', course, sectionNumber })
+            }
+            onDone={() => setActiveId(null)}
+          />
+        </section>
+      </main>
+
+      <footer className="footer">
+        <p>
+          <strong>Unofficial draft planner.</strong> Not affiliated with Bar-Ilan University. It does not
+          register you for anything — registration happens only in Inbar. Always double-check there.
+        </p>
+        {catalog.metadata.isSample && (
+          <p className="muted">
+            Sample data, snapshot {catalog.metadata.updatedAt}. Groups marked <span className="demo-tag">DEMO</span>{' '}
+            are invented for testing; credits are placeholders.
+          </p>
+        )}
+      </footer>
+
+      <nav className="tabbar" aria-label="Sections">
+        <button type="button" className={tab === 'courses' ? 'on' : ''} onClick={() => setTab('courses')}>
+          Courses <span className="count">{plan.courses.length}</span>
+        </button>
+        <button type="button" className={tab === 'week' ? 'on' : ''} onClick={() => setTab('week')}>
+          Week {conflicts.length > 0 && <span className="count warn">{conflicts.length}</span>}
+        </button>
+      </nav>
+    </div>
+  );
+}

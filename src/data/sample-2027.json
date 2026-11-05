@@ -1,0 +1,406 @@
+{
+  "metadata": {
+    "year": "2027",
+    "yearHebrew": "תשפ\"ז",
+    "departmentId": "sample-communication-political-science",
+    "updatedAt": "2026-11-05",
+    "source": "Hand-collected sample from one student's Inbar schedule, plus invented demo groups",
+    "isSample": true,
+    "notes": [
+      "Course numbers, names, times, lecturers and rooms of non-demo groups come from a real Inbar schedule printout (05.11.2026).",
+      "Only the session type 'Lecture' was shown by Inbar for some groups; other types are assumptions.",
+      "Credits are placeholders, not real values.",
+      "Groups and courses marked isDemo are invented to exercise the planner (alternatives, linked exercises, yearly course, Friday)."
+    ]
+  },
+  "courses": [
+    {
+      "courseId": "711081",
+      "name": "Birth of Political Thought A",
+      "credits": 2,
+      "term": "A",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "lecture",
+          "lecturer": "Avital Pilpel",
+          "schedule": [{ "day": 2, "startTime": "12:00", "endTime": "14:00", "building": "502", "room": "6" }]
+        },
+        {
+          "sectionNumber": "19",
+          "type": "lecture",
+          "lecturer": "Demo lecturer",
+          "isDemo": true,
+          "schedule": [{ "day": 5, "startTime": "10:00", "endTime": "12:00", "building": "502", "room": "6" }]
+        },
+        {
+          "sectionNumber": "20",
+          "type": "exercise",
+          "lecturer": "Demo TA",
+          "isDemo": true,
+          "linkedTo": ["18"],
+          "schedule": [{ "day": 2, "startTime": "16:00", "endTime": "17:00", "building": "502", "room": "8" }]
+        },
+        {
+          "sectionNumber": "21",
+          "type": "exercise",
+          "lecturer": "Demo TA",
+          "isDemo": true,
+          "linkedTo": ["18"],
+          "schedule": [{ "day": 4, "startTime": "12:00", "endTime": "13:00", "building": "502", "room": "8" }]
+        },
+        {
+          "sectionNumber": "22",
+          "type": "exercise",
+          "lecturer": "Demo TA",
+          "isDemo": true,
+          "linkedTo": ["19"],
+          "schedule": [{ "day": 5, "startTime": "12:00", "endTime": "13:00", "building": "502", "room": "8" }]
+        }
+      ]
+    },
+    {
+      "courseId": "711140",
+      "name": "Intro to Public Administration and Public Policy A",
+      "credits": 2,
+      "term": "A",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "lecture",
+          "lecturer": "Barak Bouks",
+          "schedule": [{ "day": 2, "startTime": "14:00", "endTime": "16:00", "building": "505", "room": "202" }]
+        },
+        {
+          "sectionNumber": "19",
+          "type": "lecture",
+          "lecturer": "Demo lecturer",
+          "isDemo": true,
+          "schedule": [{ "day": 1, "startTime": "14:00", "endTime": "16:00", "building": "505", "room": "202" }]
+        }
+      ]
+    },
+    {
+      "courseId": "63254",
+      "name": "Resource Development Workshop",
+      "credits": 2,
+      "term": "A",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "workshop",
+          "lecturer": "Noga Zivan",
+          "schedule": [{ "day": 2, "startTime": "16:00", "endTime": "18:00", "building": "105", "room": "6" }]
+        }
+      ]
+    },
+    {
+      "courseId": "63013",
+      "name": "Language and Communication",
+      "credits": 2,
+      "term": "A",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "lecture",
+          "lecturer": "Elie Friedman",
+          "schedule": [{ "day": 3, "startTime": "08:00", "endTime": "10:00", "building": "105", "room": "4" }]
+        },
+        {
+          "sectionNumber": "19",
+          "type": "lecture",
+          "lecturer": "Demo lecturer",
+          "isDemo": true,
+          "schedule": [{ "day": 1, "startTime": "12:00", "endTime": "14:00", "building": "105", "room": "4" }]
+        }
+      ]
+    },
+    {
+      "courseId": "71204",
+      "name": "Statistics and Computer Usage",
+      "credits": 2,
+      "term": "A",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "lecture",
+          "schedule": []
+        },
+        {
+          "sectionNumber": "19",
+          "type": "exercise",
+          "lecturer": "Noam Fischman",
+          "schedule": [{ "day": 3, "startTime": "10:00", "endTime": "12:00", "building": "505", "room": "201" }]
+        },
+        {
+          "sectionNumber": "20",
+          "type": "exercise",
+          "lecturer": "Demo TA",
+          "isDemo": true,
+          "schedule": [{ "day": 4, "startTime": "10:00", "endTime": "12:00", "building": "505", "room": "201" }]
+        }
+      ]
+    },
+    {
+      "courseId": "183138",
+      "name": "History of Power: Violence and Governance in Medieval Europe",
+      "credits": 2,
+      "term": "A",
+      "sections": [
+        {
+          "sectionNumber": "01",
+          "type": "lecture",
+          "lecturer": "Tzafrir Barzilay",
+          "schedule": [{ "day": 3, "startTime": "12:00", "endTime": "14:00", "building": "604", "room": "62" }]
+        }
+      ]
+    },
+    {
+      "courseId": "63011",
+      "name": "Journalistic Ethics",
+      "credits": 2,
+      "term": "A",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "lecture",
+          "lecturer": "Elad Man",
+          "schedule": [{ "day": 3, "startTime": "14:00", "endTime": "16:00", "building": "105", "room": "102" }]
+        },
+        {
+          "sectionNumber": "19",
+          "type": "lecture",
+          "lecturer": "Demo lecturer",
+          "isDemo": true,
+          "schedule": [{ "day": 4, "startTime": "14:00", "endTime": "16:00", "building": "105", "room": "102" }]
+        }
+      ]
+    },
+    {
+      "courseId": "63938",
+      "name": "Video Journalism Workshop",
+      "credits": 2,
+      "term": "A",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "workshop",
+          "lecturer": "Sivan Raviv",
+          "schedule": [{ "day": 3, "startTime": "16:00", "endTime": "18:00", "building": "105", "room": "5" }]
+        },
+        {
+          "sectionNumber": "19",
+          "type": "other",
+          "schedule": []
+        }
+      ]
+    },
+    {
+      "courseId": "63256",
+      "name": "Citizen Diplomacy in the Social Media & \"Peer2Peer\" Networks Age",
+      "credits": 2,
+      "term": "A",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "lecture",
+          "lecturer": "Shay Attias",
+          "schedule": [{ "day": 4, "startTime": "14:00", "endTime": "16:00", "building": "105", "room": "101" }]
+        }
+      ]
+    },
+    {
+      "courseId": "161053",
+      "name": "Jerusalem: From its beginnings to the Muslim Conquest",
+      "credits": 2,
+      "term": "A",
+      "sections": [
+        {
+          "sectionNumber": "01",
+          "type": "lecture",
+          "schedule": []
+        }
+      ]
+    },
+    {
+      "courseId": "711082",
+      "name": "Birth of Political Thought B",
+      "credits": 2,
+      "term": "B",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "lecture",
+          "lecturer": "Avital Pilpel",
+          "schedule": [{ "day": 2, "startTime": "12:00", "endTime": "14:00", "building": "502", "room": "6" }]
+        }
+      ]
+    },
+    {
+      "courseId": "711141",
+      "name": "Intro to Public Administration and Public Policy B",
+      "credits": 2,
+      "term": "B",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "lecture",
+          "lecturer": "Barak Bouks",
+          "schedule": [{ "day": 2, "startTime": "14:00", "endTime": "16:00", "building": "505", "room": "201" }]
+        }
+      ]
+    },
+    {
+      "courseId": "71052",
+      "name": "Terror, Media & Cyber: Regional Vs. Global",
+      "credits": 4,
+      "term": "B",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "lecture",
+          "lecturer": "Barak Bouks",
+          "schedule": [
+            { "day": 2, "startTime": "16:00", "endTime": "18:00", "building": "505", "room": "201" },
+            { "day": 4, "startTime": "14:00", "endTime": "16:00", "building": "505", "room": "201" }
+          ]
+        }
+      ]
+    },
+    {
+      "courseId": "63009",
+      "name": "Rhetoric and Public Speech",
+      "credits": 2,
+      "term": "B",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "lecture",
+          "lecturer": "Elie Friedman",
+          "schedule": [{ "day": 3, "startTime": "08:00", "endTime": "10:00", "building": "105", "room": "2" }]
+        },
+        {
+          "sectionNumber": "19",
+          "type": "lecture",
+          "lecturer": "Demo lecturer",
+          "isDemo": true,
+          "schedule": [{ "day": 6, "startTime": "08:00", "endTime": "10:00", "building": "105", "room": "2" }]
+        }
+      ]
+    },
+    {
+      "courseId": "71205",
+      "name": "Research Methods and Computer Usage",
+      "credits": 2,
+      "term": "B",
+      "sections": [
+        {
+          "sectionNumber": "19",
+          "type": "lecture",
+          "lecturer": "Noam Fischman",
+          "schedule": [{ "day": 3, "startTime": "10:00", "endTime": "12:00", "building": "505", "room": "201" }]
+        }
+      ]
+    },
+    {
+      "courseId": "63010",
+      "name": "Media Law",
+      "credits": 2,
+      "term": "B",
+      "sections": [
+        {
+          "sectionNumber": "18",
+          "type": "lecture",
+          "lecturer": "Elad Man",
+          "schedule": [{ "day": 3, "startTime": "14:00", "endTime": "16:00", "building": "105", "room": "1" }]
+        }
+      ]
+    },
+    {
+      "courseId": "376030",
+      "name": "Graphic Novel",
+      "credits": 2,
+      "term": "B",
+      "sections": [
+        {
+          "sectionNumber": "01",
+          "type": "lecture",
+          "lecturer": "Daniel Feldman",
+          "schedule": [{ "day": 4, "startTime": "16:00", "endTime": "20:00", "building": "505", "room": "3" }]
+        }
+      ]
+    },
+    {
+      "courseId": "99001",
+      "name": "Academic Writing Practicum (demo yearly course)",
+      "credits": 4,
+      "term": "year",
+      "isDemo": true,
+      "sections": [
+        {
+          "sectionNumber": "01",
+          "type": "lecture",
+          "lecturer": "Demo lecturer",
+          "isDemo": true,
+          "schedule": [{ "day": 1, "startTime": "10:00", "endTime": "12:00", "building": "211", "room": "3" }]
+        },
+        {
+          "sectionNumber": "02",
+          "type": "lecture",
+          "lecturer": "Demo lecturer",
+          "isDemo": true,
+          "schedule": [
+            { "day": 5, "startTime": "14:00", "endTime": "16:00", "building": "211", "room": "3", "semester": "A" },
+            { "day": 5, "startTime": "16:00", "endTime": "18:00", "building": "211", "room": "3", "semester": "B" }
+          ]
+        },
+        {
+          "sectionNumber": "03",
+          "type": "guidance",
+          "lecturer": "Demo tutor",
+          "isDemo": true,
+          "linkedTo": ["01"],
+          "schedule": [{ "day": 1, "startTime": "13:00", "endTime": "14:00", "building": "211", "room": "5" }]
+        },
+        {
+          "sectionNumber": "04",
+          "type": "guidance",
+          "lecturer": "Demo tutor",
+          "isDemo": true,
+          "linkedTo": ["02"],
+          "schedule": [{ "day": 5, "startTime": "18:00", "endTime": "19:00", "building": "211", "room": "5" }]
+        }
+      ]
+    },
+    {
+      "courseId": "99002",
+      "name": "Media Research Seminar (demo)",
+      "credits": 4,
+      "term": "B",
+      "isDemo": true,
+      "sections": [
+        {
+          "sectionNumber": "01",
+          "type": "seminar",
+          "lecturer": "Demo lecturer",
+          "isDemo": true,
+          "schedule": [{ "day": 5, "startTime": "18:00", "endTime": "20:00", "building": "105", "room": "3" }]
+        },
+        {
+          "sectionNumber": "02",
+          "type": "seminar",
+          "lecturer": "Demo lecturer",
+          "isDemo": true,
+          "schedule": [{ "day": 1, "startTime": "08:00", "endTime": "10:00", "building": "105", "room": "3" }]
+        },
+        {
+          "sectionNumber": "03",
+          "type": "lab",
+          "lecturer": "Demo lab instructor",
+          "isDemo": true,
+          "schedule": [{ "day": 5, "startTime": "20:00", "endTime": "21:00", "building": "105", "room": "12" }]
+        }
+      ]
+    }
+  ]
+}
