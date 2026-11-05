@@ -215,7 +215,7 @@ function ResultCard({
     `${m.campusDays} ${m.campusDays === 1 ? 'day' : 'days'}`,
     `${m.windowHours}h gaps`,
     m.earlyClasses > 0 && `${m.earlyClasses} before 9`,
-    m.lateClasses > 0 && `${m.lateClasses} after 19`,
+    m.lateClasses > 0 && `${m.lateClasses} after 18`,
     m.hasFriday && 'Friday',
   ].filter(Boolean);
 

@@ -20,7 +20,7 @@ export function StatsBar({ semester, misery, title, hours, credits, conflicts }:
     ['Classes before 09:00', `${misery.earlyClasses} × ${MISERY_WEIGHTS.earlyClass}`, misery.points.early],
     ['Window hours', `${misery.windowHours} × ${MISERY_WEIGHTS.windowHour}`, misery.points.windows],
     ['Friday classes', misery.hasFriday ? 'yes' : 'no', misery.points.friday],
-    ['Classes ending after 19:00', `${misery.lateClasses} × ${MISERY_WEIGHTS.lateClass}`, misery.points.late],
+    ['Classes ending after 18:00', `${misery.lateClasses} × ${MISERY_WEIGHTS.lateClass}`, misery.points.late],
   ];
 
   return (

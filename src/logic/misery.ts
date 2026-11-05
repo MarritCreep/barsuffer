@@ -14,12 +14,12 @@ export const MISERY_WEIGHTS = {
   windowHour: 3,
   /** занятия в пятницу — один раз за неделю */
   friday: 12,
-  /** каждое занятие, заканчивающееся после 19:00 */
+  /** каждое занятие, заканчивающееся после 18:00 */
   lateClass: 5,
 } as const;
 
 export const EARLY_BEFORE = 9 * 60;
-export const LATE_AFTER = 19 * 60;
+export const LATE_AFTER = 18 * 60;
 /** Окно считается, только если перерыв не короче одной клетки сетки (часа). */
 export const MIN_WINDOW = 60;
 export const MAX_SCORE = 100;

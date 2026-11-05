@@ -96,16 +96,17 @@ describe('computeMisery rules', () => {
     expect(r.score).toBe(8 + 12);
   });
 
-  it('early and late count per class; 08:59 is early, 09:00 is not; 19:00 end is not late', () => {
+  it('early and late count per class; 08:59 is early, 09:00 is not; 18:00 end is not late', () => {
     const r = computeMisery([
       span(1, '08:00', '09:00'),
       span(2, '08:59', '10:00'),
       span(3, '09:00', '10:00'),
-      span(4, '17:00', '19:00'),
-      span(5, '18:00', '19:01'),
+      span(4, '16:00', '18:00'),
+      span(5, '17:00', '18:01'),
+      span(5, '18:30', '19:00'),
     ]);
     expect(r.earlyClasses).toBe(2);
-    expect(r.lateClasses).toBe(1);
+    expect(r.lateClasses).toBe(2);
   });
 
   it('for overlapping classes only the heaviest one counts', () => {
