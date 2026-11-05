@@ -31,6 +31,9 @@ interface Props {
   /** Выбранная пустая клетка (для «что влезет»). */
   slot: TimeSpan | null;
   onSlot: (day: Day, start: number) => void;
+  onAutoPick: () => void;
+  /** Удалить курс из расписания (крестик на блоке). */
+  onRemove: (courseId: string) => void;
 }
 
 interface Block extends PlacedMeeting {
@@ -88,19 +91,24 @@ export function WeekGrid(props: Props) {
 
   return (
     <div className="week">
-      <div className="sem-tabs" role="tablist" aria-label="Semester">
-        {(['A', 'B'] as Semester[]).map((s) => (
-          <button
-            key={s}
-            type="button"
-            role="tab"
-            aria-selected={semester === s}
-            className={semester === s ? 'on' : ''}
-            onClick={() => onSemester(s)}
-          >
-            Semester {s}
-          </button>
-        ))}
+      <div className="week-toolbar">
+        <div className="sem-tabs" role="tablist" aria-label="Semester">
+          {(['A', 'B'] as Semester[]).map((s) => (
+            <button
+              key={s}
+              type="button"
+              role="tab"
+              aria-selected={semester === s}
+              className={semester === s ? 'on' : ''}
+              onClick={() => onSemester(s)}
+            >
+              Semester {s}
+            </button>
+          ))}
+        </div>
+        <button type="button" className="btn btn-auto" onClick={props.onAutoPick}>
+          Auto-pick
+        </button>
       </div>
 
       {activeCourse && planned && (
@@ -220,11 +228,14 @@ export function WeekGrid(props: Props) {
                     .filter(Boolean)
                     .join(', ');
                   return (
-                    <button
+                    <div
                       key={b.key}
+                      className={`ev-wrap ${b.activeSelected ? 'active' : ''} ${b.dim ? 'dim' : ''}`}
+                      style={style}
+                    >
+                    <button
                       type="button"
                       className={cls}
-                      style={style}
                       onClick={() => handleClick(b)}
                       aria-label={label}
                       title={label}
@@ -244,6 +255,18 @@ export function WeekGrid(props: Props) {
                         </span>
                       )}
                     </button>
+                    {!b.ghost && (
+                      <button
+                        type="button"
+                        className="ev-remove"
+                        onClick={() => props.onRemove(b.courseId)}
+                        aria-label={`Remove ${b.courseName} from schedule`}
+                        title="Remove course (Ctrl+Z to undo)"
+                      >
+                        ×
+                      </button>
+                    )}
+                    </div>
                   );
                 })}
             </div>

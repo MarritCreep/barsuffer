@@ -783,8 +783,72 @@ h3 {
 }
 
 /* ---------- Блоки занятий ---------- */
+.ev-wrap {
+  position: absolute;
+}
+
+.ev-wrap:hover,
+.ev-wrap:focus-within {
+  z-index: 3;
+}
+
+.ev-wrap.active {
+  z-index: 1;
+}
+
+/* Крестик «убрать курс»: появляется при наведении; на сенсорных экранах — у выбранного курса */
+.ev-remove {
+  position: absolute;
+  top: 3px;
+  inset-inline-end: 3px;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms;
+}
+
+.ev-wrap:hover .ev-remove,
+.ev-wrap:focus-within .ev-remove {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.ev-remove:hover {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+@media (hover: none) {
+  .ev-wrap:hover .ev-remove {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .ev-wrap.active .ev-remove {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.ev-wrap.dim:not(:hover) .ev-remove {
+  opacity: 0;
+}
+
 .event {
   position: absolute;
+  inset: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -799,10 +863,6 @@ h3 {
   font-size: 10px;
   line-height: 1.2;
   transition: opacity 120ms, transform 120ms;
-}
-
-.event:hover {
-  z-index: 2;
 }
 
 .ev-name {
@@ -888,7 +948,6 @@ h3 {
 
 .event.active {
   box-shadow: 0 0 0 2px var(--cc);
-  z-index: 1;
 }
 
 .event.dim {
@@ -906,7 +965,7 @@ h3 {
 
 .ev-flag {
   position: absolute;
-  top: 2px;
+  bottom: 2px;
   inset-inline-end: 2px;
   width: 14px;
   height: 14px;
@@ -1021,6 +1080,272 @@ h3 {
   display: grid;
   gap: 2px;
   min-width: 0;
+}
+
+/* ---------- Панель над сеткой ---------- */
+.week-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.week-toolbar .sem-tabs {
+  margin-bottom: 0;
+}
+
+.btn-auto::before {
+  content: '✦ ';
+}
+
+.btn:disabled,
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.history-btns {
+  display: inline-flex;
+  gap: 4px;
+}
+
+/* ---------- Скрытые и обязательные курсы ---------- */
+.my-course.is-hidden {
+  opacity: 0.55;
+  border-inline-start-style: dashed;
+}
+
+.my-course-actions {
+  display: flex;
+  flex-direction: column;
+}
+
+.req-tag {
+  display: inline-block;
+  margin-inline-start: 4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 14px;
+  vertical-align: 1px;
+  color: var(--accent);
+  border: 1px solid currentColor;
+}
+
+.hint-muted {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------- Окно автоподбора ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: end center;
+  background: rgb(0 0 0 / 50%);
+}
+
+@media (min-width: 700px) {
+  .modal-backdrop {
+    place-items: center;
+    padding: 24px;
+  }
+}
+
+.modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 45%);
+}
+
+@media (min-width: 700px) {
+  .modal {
+    border-radius: 16px;
+  }
+}
+
+.modal:focus {
+  outline: none;
+}
+
+.modal-body {
+  overflow-y: auto;
+  padding: 12px 14px 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.modal-body p {
+  margin: 0;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.req-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.req-item label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--cc);
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.req-item input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+  flex: none;
+}
+
+.req-text {
+  display: grid;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.chip-required {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.stepper-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.stepper {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.ap-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.ap-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.ap-card:first-child {
+  border-color: var(--accent);
+}
+
+.ap-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ap-rank {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.ap-score {
+  font-family: var(--font-hand);
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 44px;
+  color: var(--accent);
+}
+
+.ap-title {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+
+.ap-title .misery-title {
+  font-size: 20px;
+}
+
+.ap-better {
+  color: var(--c2);
+  font-weight: 600;
+}
+
+.ap-worse {
+  color: var(--warn);
+}
+
+.mini-week {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.mini-day {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+}
+
+.mini-label {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.mini-col {
+  position: relative;
+  height: 70px;
+  border-radius: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.mini-block {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 2px;
+  background: var(--cc);
+  opacity: 0.85;
 }
 
 .unscheduled {

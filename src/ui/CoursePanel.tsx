@@ -11,6 +11,7 @@ interface Props {
   onRemove: (courseId: string) => void;
   onPick: (course: Course) => void;
   onClear: () => void;
+  onSetHidden: (courseId: string, hidden: boolean) => void;
 }
 
 /** Поиск по названию, номеру курса (с дефисами или без) и преподавателю. */
@@ -23,7 +24,7 @@ export function matchCourse(course: Course, query: string): boolean {
   return course.sections.some((s) => s.lecturer?.toLowerCase().includes(q));
 }
 
-export function CoursePanel({ catalog, plan, activeId, onAdd, onRemove, onPick, onClear }: Props) {
+export function CoursePanel({ catalog, plan, activeId, onAdd, onRemove, onPick, onClear, onSetHidden }: Props) {
   const [query, setQuery] = useState('');
   const planned = new Set(plan.courses.map((c) => c.courseId));
   const results = useMemo(
@@ -54,14 +55,16 @@ export function CoursePanel({ catalog, plan, activeId, onAdd, onRemove, onPick, 
               return (
                 <li
                   key={pc.courseId}
-                  className={`my-course c${pc.color} ${activeId === pc.courseId ? 'active' : ''}`}
+                  className={`my-course c${pc.color} ${activeId === pc.courseId ? 'active' : ''} ${pc.hidden ? 'is-hidden' : ''}`}
                 >
                   <button type="button" className="my-course-main" onClick={() => onPick(course)}>
                     <span className="my-course-name">{course.name}</span>
                     <span className="my-course-meta">
                       {course.courseId} · {TERM_LABEL[course.term]}
+                      {pc.required && <span className="req-tag">REQUIRED</span>}
                       {course.isDemo && <span className="demo-tag">DEMO</span>}
                     </span>
+                    {pc.hidden && <span className="hint-muted">Hidden — not on the grid, not counted</span>}
                     <span className="chips">
                       {requiredTypes(course).map((type) => {
                         const num = pc.picks[type];
@@ -79,15 +82,36 @@ export function CoursePanel({ catalog, plan, activeId, onAdd, onRemove, onPick, 
                       </span>
                     )}
                   </button>
-                  <button
-                    type="button"
-                    className="icon-btn remove"
-                    onClick={() => onRemove(pc.courseId)}
-                    aria-label={`Remove ${course.name}`}
-                    title="Remove"
-                  >
-                    ×
-                  </button>
+                  <span className="my-course-actions">
+                    <button
+                      type="button"
+                      className="icon-btn remove"
+                      onClick={() => onRemove(pc.courseId)}
+                      aria-label={`Remove ${course.name}`}
+                      title="Remove"
+                    >
+                      ×
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn remove"
+                      onClick={() => onSetHidden(pc.courseId, !pc.hidden)}
+                      aria-label={pc.hidden ? `Show ${course.name}` : `Hide ${course.name}`}
+                      aria-pressed={Boolean(pc.hidden)}
+                      title={pc.hidden ? 'Show on the grid' : 'Hide for now'}
+                    >
+                      {pc.hidden ? (
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                          <path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A10 10 0 0 1 12 5c5 0 9 4.5 10 7-0.4 1-1.3 2.4-2.6 3.7M6.1 6.1C4.2 7.4 2.7 9.3 2 12c1 2.5 5 7 10 7 1.8 0 3.4-.6 4.8-1.4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                          <path d="M2 12c1-2.5 5-7 10-7s9 4.5 10 7c-1 2.5-5 7-10 7S3 14.5 2 12Z" fill="none" stroke="currentColor" strokeWidth="2" />
+                          <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      )}
+                    </button>
+                  </span>
                 </li>
               );
             })}

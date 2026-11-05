@@ -6,6 +6,6 @@ export default defineConfig({
   // Относительные пути, чтобы сборка работала на GitHub Pages из подпапки.
   base: './',
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts'], // логика, состояние и редьюсер плана
   },
 });

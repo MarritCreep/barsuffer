@@ -5,7 +5,9 @@ import { academicHours, totalCredits } from '../logic/load';
 import { computeMisery, pickTitle } from '../logic/misery';
 import { collectMeetings, collectUnscheduled, findConflicts, type TimeSpan } from '../logic/schedule';
 import { hourSlot, optionsForSlot } from '../logic/slots';
+import { initHistory, withHistory } from '../state/history';
 import { loadPlan, loadTheme, savePlan, saveTheme, type Theme } from '../state/storage';
+import { AutoPickDialog } from './AutoPickDialog';
 import { CoursePanel } from './CoursePanel';
 import { Header } from './Header';
 import { planReducer } from './planReducer';
@@ -15,8 +17,20 @@ import { WeekGrid } from './WeekGrid';
 
 type MobileTab = 'courses' | 'week';
 
+const planHistoryReducer = withHistory(planReducer);
+
+/** Ctrl+Z внутри поля ввода должен отменять ввод текста, а не изменения расписания. */
+function isTyping(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+  );
+}
+
 export function App() {
-  const [plan, dispatch] = useReducer(planReducer, undefined, loadPlan);
+  const [history, dispatch] = useReducer(planHistoryReducer, undefined, () => initHistory(loadPlan()));
+  const plan = history.present;
+  const [autoPickOpen, setAutoPickOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const [semester, setSemester] = useState<Semester>('A');
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -68,6 +82,18 @@ export function App() {
       if (e.key === 'Escape') {
         setActiveId(null);
         setSlot(null);
+        setAutoPickOpen(false);
+        return;
+      }
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || isTyping(e.target)) return;
+      // e.code — чтобы работало и в ивритской/русской раскладке.
+      const key = e.code === 'KeyZ' ? 'z' : e.code === 'KeyY' ? 'y' : '';
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        dispatch({ kind: 'undo' });
+      } else if ((key === 'z' && e.shiftKey) || key === 'y') {
+        e.preventDefault();
+        dispatch({ kind: 'redo' });
       }
     };
     window.addEventListener('keydown', onKey);
@@ -80,6 +106,10 @@ export function App() {
         metadata={catalog.metadata}
         theme={theme}
         onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+        canUndo={history.past.length > 0}
+        canRedo={history.future.length > 0}
+        onUndo={() => dispatch({ kind: 'undo' })}
+        onRedo={() => dispatch({ kind: 'redo' })}
       />
 
       <main className="layout">
@@ -92,6 +122,7 @@ export function App() {
             onRemove={(courseId) => dispatch({ kind: 'remove', courseId })}
             onPick={startPicking}
             onClear={() => dispatch({ kind: 'clear' })}
+            onSetHidden={(courseId, hidden) => dispatch({ kind: 'setHidden', courseId, hidden })}
           />
         </section>
 
@@ -127,6 +158,12 @@ export function App() {
               setTab('week');
               setSlot(hourSlot(day, start));
             }}
+            onAutoPick={() => {
+              setActiveId(null);
+              setSlot(null);
+              setAutoPickOpen(true);
+            }}
+            onRemove={(courseId) => dispatch({ kind: 'remove', courseId })}
           />
         </section>
       </main>
@@ -142,6 +179,21 @@ export function App() {
             dispatch({ kind: 'select', course, sectionNumber: section.sectionNumber })
           }
           onClose={() => setSlot(null)}
+        />
+      )}
+
+      {autoPickOpen && (
+        <AutoPickDialog
+          plan={plan}
+          courses={courseMap}
+          semester={semester}
+          onSetRequired={(courseId, required) => dispatch({ kind: 'setRequired', courseId, required })}
+          onApply={(result) => {
+            dispatch({ kind: 'applyAuto', picks: result.picks, skipped: result.skipped });
+            setAutoPickOpen(false);
+            setTab('week');
+          }}
+          onClose={() => setAutoPickOpen(false)}
         />
       )}
 

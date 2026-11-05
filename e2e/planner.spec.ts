@@ -70,6 +70,74 @@ test('tap an empty cell to see what fits there', async ({ page, isMobile }) => {
   await expect(sheet).toHaveCount(0);
 });
 
+async function seed(page: import('@playwright/test').Page, picks: [string, Record<string, string>][]) {
+  await page.evaluate((p) => {
+    localStorage.setItem(
+      'barsuffer:plan:v1',
+      JSON.stringify({ v: 1, courses: p.map(([courseId, pk], i) => ({ courseId, color: i, picks: pk })) }),
+    );
+  }, picks);
+  await page.reload();
+}
+
+test('auto-pick asks for required courses first, then applies the best option', async ({ page, isMobile }) => {
+  await seed(page, [
+    ['63013', { lecture: '18' }],
+    ['711140', { lecture: '18' }],
+    ['63254', { workshop: '18' }],
+  ]);
+  if (isMobile) await page.getByRole('button', { name: /^Week/ }).click();
+
+  await page.getByRole('button', { name: 'Auto-pick' }).click();
+  const dialog = page.getByRole('dialog', { name: /can’t you skip/ });
+  const find = dialog.getByRole('button', { name: 'Find best schedules' });
+  // Пока ничего не отмечено как обязательное — искать нельзя.
+  await expect(find).toBeDisabled();
+  await expect(dialog.getByText('Mark at least one required course')).toBeVisible();
+
+  await dialog.getByRole('checkbox').first().check(); // 63013 обязателен
+  await expect(find).toBeEnabled();
+  await dialog.getByRole('button', { name: 'Take fewer optional courses' }).click(); // 1 из 2
+  await expect(dialog.getByText(/Also take\s*1\s*of 2/)).toBeVisible();
+  await shot(page, '09-autopick-setup');
+  await find.click();
+
+  const results = page.getByRole('dialog', { name: 'Least painful schedules' });
+  await expect(results.locator('.ap-card').first().locator('.ap-score')).toHaveText('8');
+  await shot(page, '10-autopick-results');
+  await results.getByRole('button', { name: 'Use this' }).first().click();
+
+  // Оба курса в воскресенье, 63254 скрыт.
+  await expect(page.locator('.misery-score')).toContainText('8');
+  await expect(page.locator('.event')).toHaveCount(2);
+
+  // Ctrl+Z возвращает прежнее расписание.
+  await page.keyboard.press('Control+z');
+  await expect(page.locator('.event')).toHaveCount(3);
+  await page.keyboard.press('Control+y');
+  await expect(page.locator('.event')).toHaveCount(2);
+
+  if (isMobile) await page.getByRole('button', { name: /^Courses/ }).click();
+  await expect(page.getByText('Hidden — not on the grid, not counted')).toBeVisible();
+});
+
+test('remove a course from the grid with the × and undo it', async ({ page, isMobile }) => {
+  await seed(page, [
+    ['63013', { lecture: '18' }],
+    ['183138', { lecture: '01' }],
+  ]);
+  if (isMobile) await page.getByRole('button', { name: /^Week/ }).click();
+
+  const block = page.locator('.ev-wrap', { hasText: 'History of Power' });
+  await block.locator('.event').click();
+  await shot(page, '11-remove-x');
+  await block.getByRole('button', { name: /Remove History of Power/ }).click();
+  await expect(page.locator('.event', { hasText: 'History of Power' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.locator('.event', { hasText: 'History of Power' })).toHaveCount(1);
+});
+
 test('real sample schedule renders with conflicts, theme toggles', async ({ page, isMobile }) => {
   await page.evaluate(() => {
     const picks: [string, Record<string, string>][] = [

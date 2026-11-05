@@ -35,7 +35,8 @@ export function optionsForSlot(
     const others = current.filter((m) => m.courseId !== course.courseId);
 
     for (const section of course.sections) {
-      if (inPlan?.picks[section.type] === section.sectionNumber) continue;
+      // Выбранные группы уже на сетке — кроме скрытых курсов.
+      if (inPlan && !inPlan.hidden && inPlan.picks[section.type] === section.sectionNumber) continue;
       const meetings: TimeSpan[] = sectionMeetings(course, section, semester).map((m) => ({
         day: m.day,
         start: toMinutes(m.startTime),

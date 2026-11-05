@@ -23,7 +23,7 @@ export function totalCredits(plan: Plan, courses: ReadonlyMap<string, Course>): 
   let unknown = 0;
   for (const planned of plan.courses) {
     const course = courses.get(planned.courseId);
-    if (!course) continue;
+    if (!course || planned.hidden) continue;
     if (course.credits === null) unknown++;
     else total += course.credits;
   }

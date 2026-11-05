@@ -68,7 +68,7 @@ export function collectMeetings(
   const result: PlacedMeeting[] = [];
   for (const planned of plan.courses) {
     const course = courses.get(planned.courseId);
-    if (!course) continue;
+    if (!course || planned.hidden) continue;
     for (const num of Object.values(planned.picks)) {
       const section = num === undefined ? undefined : findSection(course, num);
       if (section) result.push(...placeSection(course, section, semester, planned.color));
@@ -86,7 +86,7 @@ export function collectUnscheduled(
   const result: { course: Course; section: Section; color: number }[] = [];
   for (const planned of plan.courses) {
     const course = courses.get(planned.courseId);
-    if (!course || !termIncludes(course.term, semester)) continue;
+    if (!course || planned.hidden || !termIncludes(course.term, semester)) continue;
     for (const num of Object.values(planned.picks)) {
       const section = num === undefined ? undefined : findSection(course, num);
       if (section && section.schedule.length === 0) {
