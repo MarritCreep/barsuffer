@@ -1,11 +1,12 @@
 import type { CSSProperties } from 'react';
-import { DAY_LABEL, DAYS, type Course, type Section, type Semester } from '../data/types';
+import { DAY_LABEL, DAYS, type Course, type Day, type Section, type Semester } from '../data/types';
 import {
   assignLanes,
   placeSection,
   termIncludes,
   type Conflict,
   type PlacedMeeting,
+  type TimeSpan,
 } from '../logic/schedule';
 import { findSection, isCompatible, type Plan } from '../logic/selection';
 import { formatMinutes } from '../logic/time';
@@ -27,6 +28,9 @@ interface Props {
   onActivate: (courseId: string) => void;
   onToggleSection: (course: Course, sectionNumber: string) => void;
   onDone: () => void;
+  /** Выбранная пустая клетка (для «что влезет»). */
+  slot: TimeSpan | null;
+  onSlot: (day: Day, start: number) => void;
 }
 
 interface Block extends PlacedMeeting {
@@ -163,6 +167,20 @@ export function WeekGrid(props: Props) {
           </div>
           {DAYS.map((d) => (
             <div key={d} className="day-col" role="gridcell">
+              {HOURS.map((h, i) => {
+                const on = props.slot?.day === d && props.slot.start === h;
+                return (
+                  <button
+                    key={h}
+                    type="button"
+                    className={`cell ${on ? 'on' : ''}`}
+                    style={{ top: `calc(var(--row-h) * ${i})` }}
+                    onClick={() => props.onSlot(d, h)}
+                    aria-label={`What fits on ${DAY_LABEL[d]} ${timeRange(h, h + 60)}`}
+                    aria-pressed={on}
+                  />
+                );
+              })}
               {laid
                 .filter(({ item }) => item.day === d)
                 .map(({ item: b, lane, lanes }) => {

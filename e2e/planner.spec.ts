@@ -46,6 +46,30 @@ test('add a course, pick linked groups, see score and persistence', async ({ pag
   await expect(page.locator('.event')).toHaveCount(3);
 });
 
+test('tap an empty cell to see what fits there', async ({ page, isMobile }) => {
+  if (isMobile) await page.getByRole('button', { name: /^Week/ }).click();
+
+  await page.getByRole('button', { name: /What fits on Wed 14:00/ }).click();
+  const sheet = page.getByRole('dialog', { name: 'Courses for this time slot' });
+  await expect(sheet.locator('.slot-item')).toHaveCount(2);
+  await shot(page, '08-slot');
+
+  await sheet
+    .locator('.slot-item', { hasText: 'Citizen Diplomacy' })
+    .getByRole('button', { name: '+ Add' })
+    .click();
+  await expect(page.locator('.event', { hasText: 'Citizen Diplomacy' })).toHaveCount(1);
+  // Добавленная группа уходит из списка, оставшаяся помечена как накладка.
+  await expect(sheet.locator('.slot-item')).toHaveCount(1);
+  await expect(sheet.getByText('Overlaps your schedule')).toBeVisible();
+
+  await page.getByRole('button', { name: /What fits on Fri 12:00/ }).click();
+  await expect(sheet.getByText('No courses meet at this time.')).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0);
+});
+
 test('real sample schedule renders with conflicts, theme toggles', async ({ page, isMobile }) => {
   await page.evaluate(() => {
     const picks: [string, Record<string, string>][] = [

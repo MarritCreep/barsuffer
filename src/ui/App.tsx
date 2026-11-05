@@ -3,11 +3,13 @@ import { catalog, courseMap } from '../data/catalog';
 import type { Course, Semester } from '../data/types';
 import { academicHours, totalCredits } from '../logic/load';
 import { computeMisery, pickTitle } from '../logic/misery';
-import { collectMeetings, collectUnscheduled, findConflicts } from '../logic/schedule';
+import { collectMeetings, collectUnscheduled, findConflicts, type TimeSpan } from '../logic/schedule';
+import { hourSlot, optionsForSlot } from '../logic/slots';
 import { loadPlan, loadTheme, savePlan, saveTheme, type Theme } from '../state/storage';
 import { CoursePanel } from './CoursePanel';
 import { Header } from './Header';
 import { planReducer } from './planReducer';
+import { SlotSheet } from './SlotSheet';
 import { StatsBar } from './StatsBar';
 import { WeekGrid } from './WeekGrid';
 
@@ -19,6 +21,7 @@ export function App() {
   const [semester, setSemester] = useState<Semester>('A');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tab, setTab] = useState<MobileTab>('courses');
+  const [slot, setSlot] = useState<TimeSpan | null>(null);
 
   useEffect(() => savePlan(plan), [plan]);
 
@@ -39,9 +42,14 @@ export function App() {
   const title = pickTitle(misery, meetings.length);
   const hours = academicHours(meetings);
   const credits = totalCredits(plan, courseMap);
+  const slotOptions = useMemo(
+    () => (slot ? optionsForSlot(catalog.courses, plan, semester, slot, meetings) : []),
+    [slot, plan, semester, meetings],
+  );
 
   /** Включить режим выбора групп курса; переключает семестр на семестр курса. */
   const startPicking = useCallback((course: Course) => {
+    setSlot(null);
     setActiveId(course.courseId);
     if (course.term !== 'year') setSemester(course.term);
     setTab('week');
@@ -57,7 +65,10 @@ export function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setActiveId(null);
+      if (e.key === 'Escape') {
+        setActiveId(null);
+        setSlot(null);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -110,9 +121,29 @@ export function App() {
               dispatch({ kind: 'toggle', course, sectionNumber })
             }
             onDone={() => setActiveId(null)}
+            slot={slot}
+            onSlot={(day, start) => {
+              setActiveId(null);
+              setTab('week');
+              setSlot(hourSlot(day, start));
+            }}
           />
         </section>
       </main>
+
+      {slot && tab === 'week' && (
+        <SlotSheet
+          slot={slot}
+          semester={semester}
+          options={slotOptions}
+          plan={plan}
+          onAdd={(course, section) => dispatch({ kind: 'add', course, sectionNumber: section.sectionNumber })}
+          onSwitch={(course, section) =>
+            dispatch({ kind: 'select', course, sectionNumber: section.sectionNumber })
+          }
+          onClose={() => setSlot(null)}
+        />
+      )}
 
       <footer className="footer">
         <p>
