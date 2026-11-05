@@ -49,6 +49,12 @@ npx playwright test  # браузерные тесты (сами собираю�
 npm run build      # typecheck + сборка в dist/
 ```
 
+## Публикация
+
+Репозиторий публичный: github.com/MarritCreep/barsuffer. Сайт: https://marritcreep.github.io/barsuffer/.
+`.github/workflows/deploy.yml` на каждый push в `main` гоняет `npm test` и сборку и публикует `dist/`
+на GitHub Pages. Если тесты красные, сайт не обновится. Playwright в CI не запускается.
+
 ## Структура
 
 - `src/data/types.ts` — модель каталога; `src/data/sample-2027.json` — образец (תשפ"ז).
