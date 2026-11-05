@@ -1,0 +1,20 @@
+# личные данные — никогда не коммитим
+_private/
+
+# зависимости и сборка
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+
+# локальные настройки
+.env
+.env.*
+*.local
+.claude/settings.local.json
+.vscode/
+
+# системное
+.DS_Store
+Thumbs.db
