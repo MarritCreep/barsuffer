@@ -18,6 +18,9 @@ export const MISERY_WEIGHTS = {
   lateClass: 5,
 } as const;
 
+/** Веса индекса. Стандартные — MISERY_WEIGHTS; свои веса студент задаёт в автоподборе. */
+export type MiseryWeights = { -readonly [K in keyof typeof MISERY_WEIGHTS]: number };
+
 export const EARLY_BEFORE = 9 * 60;
 export const LATE_AFTER = 18 * 60;
 /** Окно считается, только если перерыв не короче одной клетки сетки (часа). */
@@ -46,7 +49,10 @@ export interface MiseryResult {
  * «тяжёлое» из них (с наибольшими баллами за раннее начало и поздний конец),
  * а окна считаются по объединённому времени.
  */
-export function computeMisery(meetings: readonly TimeSpan[]): MiseryResult {
+export function computeMisery(
+  meetings: readonly TimeSpan[],
+  weights: MiseryWeights = MISERY_WEIGHTS,
+): MiseryResult {
   const clusters = clusterByOverlap(meetings);
 
   let earlyClasses = 0;
@@ -58,7 +64,7 @@ export function computeMisery(meetings: readonly TimeSpan[]): MiseryResult {
     for (const m of cluster) {
       const early = m.start < EARLY_BEFORE ? 1 : 0;
       const late = m.end > LATE_AFTER ? 1 : 0;
-      const points = early * MISERY_WEIGHTS.earlyClass + late * MISERY_WEIGHTS.lateClass;
+      const points = early * weights.earlyClass + late * weights.lateClass;
       if (points > best.points) best = { early, late, points };
     }
     earlyClasses += best.early;
@@ -87,11 +93,11 @@ export function computeMisery(meetings: readonly TimeSpan[]): MiseryResult {
   }
 
   const points: Record<MiseryCategory, number> = {
-    days: days.size * MISERY_WEIGHTS.campusDay,
-    early: earlyClasses * MISERY_WEIGHTS.earlyClass,
-    windows: windowHours * MISERY_WEIGHTS.windowHour,
-    friday: hasFriday ? MISERY_WEIGHTS.friday : 0,
-    late: lateClasses * MISERY_WEIGHTS.lateClass,
+    days: days.size * weights.campusDay,
+    early: earlyClasses * weights.earlyClass,
+    windows: windowHours * weights.windowHour,
+    friday: hasFriday ? weights.friday : 0,
+    late: lateClasses * weights.lateClass,
   };
   const raw = Object.values(points).reduce((a, b) => a + b, 0);
 

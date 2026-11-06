@@ -4,6 +4,7 @@ import {
   nextColor,
   selectSection,
   toggleSection,
+  type PersonalBlock,
   type Picks,
   type Plan,
   type PlannedCourse,
@@ -17,6 +18,8 @@ export type PlanAction =
   | { kind: 'setRequired'; courseId: string; required: boolean }
   | { kind: 'setHidden'; courseId: string; hidden: boolean }
   | { kind: 'applyAuto'; picks: Record<string, Picks>; skipped: string[] }
+  | { kind: 'addBlock'; block: PersonalBlock }
+  | { kind: 'removeBlock'; id: string }
   | { kind: 'clear' };
 
 /** Меняет один курс; если ничего не изменилось — возвращает тот же план (для истории это no-op). */
@@ -75,7 +78,13 @@ export function planReducer(plan: Plan, action: PlanAction): Plan {
         }),
       };
     }
+    case 'addBlock':
+      return { ...plan, blocks: [...(plan.blocks ?? []), action.block] };
+    case 'removeBlock':
+      if (!plan.blocks?.some((b) => b.id === action.id)) return plan;
+      return { ...plan, blocks: plan.blocks.filter((b) => b.id !== action.id) };
     case 'clear':
+      // Блокировки — это не курсы, «Clear all» их не трогает.
       if (plan.courses.length === 0) return plan;
       return { ...plan, courses: [] };
   }

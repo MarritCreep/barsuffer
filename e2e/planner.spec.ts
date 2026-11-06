@@ -138,6 +138,106 @@ test('remove a course from the grid with the × and undo it', async ({ page, isM
   await expect(page.locator('.event', { hasText: 'History of Power' })).toHaveCount(1);
 });
 
+test('block personal time, see conflicts, remove the block', async ({ page, isMobile }) => {
+  await seed(page, [['63256', { lecture: '18' }]]); // ср 14–16
+  if (isMobile) await page.getByRole('button', { name: /^Week/ }).click();
+
+  await page.getByRole('button', { name: /What fits on Wed 08:00/ }).click();
+  const sheet = page.getByRole('dialog', { name: 'Courses for this time slot' });
+  await sheet.getByRole('button', { name: /Block this time/ }).click();
+  await sheet.getByRole('textbox', { name: 'What is this time for' }).fill('Work');
+  await sheet.getByRole('combobox', { name: 'Block until' }).selectOption({ label: '15:00' });
+  await sheet.getByRole('button', { name: 'Block it' }).click();
+
+  await expect(page.locator('.event.busy')).toHaveCount(1);
+  await expect(page.locator('.conflicts')).toContainText('your block “Work”');
+  await shot(page, '12-block');
+
+  const block = page.locator('.ev-wrap.is-block');
+  await block.hover();
+  await block.getByRole('button', { name: 'Remove block Work' }).click();
+  await expect(page.locator('.event.busy')).toHaveCount(0);
+});
+
+test('ghosts show how the suffering index would change', async ({ page, isMobile }) => {
+  await seed(page, [['63013', { lecture: '18' }]]); // вт 08–10
+  if (isMobile) await page.getByRole('button', { name: /^Week/ }).click();
+  await page.locator('.event', { hasText: 'Language and Communication' }).click();
+  // Группа 19 в воскресенье 12–14 убирает раннюю пару: −6.
+  await expect(page.locator('.event.ghost .ev-delta')).toHaveText('−6');
+  await shot(page, '13-ghost-delta');
+});
+
+test('commute time turns into hours on the road', async ({ page, isMobile }) => {
+  await seed(page, [
+    ['63013', { lecture: '18' }],
+    ['63256', { lecture: '18' }],
+  ]); // вт и ср
+  if (isMobile) await page.getByRole('button', { name: /^Week/ }).click();
+  await page.getByRole('button', { name: 'Set your commute time' }).click();
+  const input = page.getByRole('spinbutton', { name: 'Commute one way, minutes' });
+  await input.fill('45');
+  await input.press('Enter');
+  // 2 дня × 2 поездки × 45 мин = 3 ч.
+  await expect(page.locator('.kpi-commute .kpi-value')).toHaveText('3');
+  await page.reload();
+  if (isMobile) await page.getByRole('button', { name: /^Week/ }).click();
+  await expect(page.locator('.kpi-commute .kpi-value')).toHaveText('3');
+});
+
+test('auto-pick has adjustable weights', async ({ page, isMobile }) => {
+  await seed(page, [['63013', { lecture: '18' }]]);
+  if (isMobile) await page.getByRole('button', { name: /^Week/ }).click();
+  await page.getByRole('button', { name: 'Auto-pick' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByText('Your suffering weights').click();
+  const early = dialog.getByRole('slider', { name: /before 09:00/ });
+  await early.fill('0');
+  await expect(dialog.getByText('Your suffering weights (custom)')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Reset' }).click();
+  await expect(early).toHaveValue('6');
+});
+
+test('today view: classes now and next, or a free day', async ({ page, isMobile }) => {
+  await page.clock.setFixedTime(new Date('2026-11-10T12:30:00')); // вторник
+  await seed(page, [
+    ['63013', { lecture: '18' }], // вт 08–10
+    ['183138', { lecture: '01' }], // вт 12–14
+    ['63010', { lecture: '18' }], // семестр B — не сегодня
+  ]);
+  if (isMobile) await page.getByRole('button', { name: 'Today' }).click();
+  const today = page.locator('.today');
+  await expect(today.locator('.agenda-item.done')).toContainText('Language and Communication');
+  await expect(today.locator('.agenda-item.now')).toContainText('1 h 30 min left');
+  await shot(page, '14-today');
+
+  await page.clock.setFixedTime(new Date('2026-11-12T09:00:00')); // четверг
+  await page.reload();
+  if (isMobile) await page.getByRole('button', { name: 'Today' }).click();
+  await expect(today.getByText('No classes today. Enjoy!')).toBeVisible();
+  await expect(today.getByText(/Next class:/)).toContainText('Language and Communication');
+});
+
+test('campus map: route for a day, Run! warning, empty day', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-11-11T10:00:00')); // среда
+  await seed(page, [
+    ['63256', { lecture: '18' }], // ср 14–16, здание 105
+    ['99003', { lecture: '01' }], // ср 16–18, здание 901 (демо)
+  ]);
+  await page.getByRole('button', { name: 'Open campus map' }).click();
+  const map = page.getByRole('dialog', { name: 'Campus map' });
+  await expect(map.locator('.route-stop')).toHaveCount(2);
+  await expect(map.locator('.route-leg.run')).toContainText('Run!');
+  await shot(page, '15-map');
+
+  await map.getByRole('tab', { name: 'Fri' }).click();
+  await expect(map.getByText('No classes on Fri in Semester A.')).toBeVisible();
+  await map.getByRole('tab', { name: 'Week' }).click();
+  await expect(map.locator('.map-mark')).toHaveCount(2);
+  await map.getByRole('button', { name: 'Close map' }).click();
+  await expect(map).toHaveCount(0);
+});
+
 test('real sample schedule renders with conflicts, theme toggles', async ({ page, isMobile }) => {
   await page.evaluate(() => {
     const picks: [string, Record<string, string>][] = [

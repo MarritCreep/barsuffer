@@ -1,22 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { DAYS, DAY_LABEL, type Course, type Semester } from '../data/types';
 import { autoPick, type AutoPickOutcome, type AutoPickResult } from '../logic/autopick';
-import { computeMisery, pickTitle } from '../logic/misery';
-import { collectMeetings, termIncludes } from '../logic/schedule';
+import { weeklyCommuteHours } from '../logic/load';
+import { computeMisery, MISERY_WEIGHTS, pickTitle, type MiseryWeights } from '../logic/misery';
+import { collectMeetings, termIncludes, type TimeSpan } from '../logic/schedule';
 import type { Plan } from '../logic/selection';
-import { TERM_LABEL } from './format';
+import { formatHours, TERM_LABEL } from './format';
 import { GRID_END, GRID_START } from './WeekGrid';
 
 interface Props {
   plan: Plan;
   courses: ReadonlyMap<string, Course>;
   semester: Semester;
+  weights: MiseryWeights;
+  onWeights: (weights: MiseryWeights) => void;
+  /** Личные блокировки семестра — автоподбор их обходит. */
+  blocked: TimeSpan[];
+  commuteMinutes: number;
   onSetRequired: (courseId: string, required: boolean) => void;
   onApply: (result: AutoPickResult) => void;
   onClose: () => void;
 }
 
-export function AutoPickDialog({ plan, courses, semester, onSetRequired, onApply, onClose }: Props) {
+const WEIGHT_LABELS: [keyof MiseryWeights, string][] = [
+  ['campusDay', 'Each day on campus'],
+  ['earlyClass', 'Each class before 09:00'],
+  ['windowHour', 'Each hour of gap'],
+  ['friday', 'Classes on Friday'],
+  ['lateClass', 'Each class ending after 18:00'],
+];
+
+const isDefault = (w: MiseryWeights) =>
+  (Object.keys(MISERY_WEIGHTS) as (keyof MiseryWeights)[]).every((k) => w[k] === MISERY_WEIGHTS[k]);
+
+export function AutoPickDialog(props: Props) {
+  const { plan, courses, semester, weights, onSetRequired, onApply, onClose } = props;
   const [outcome, setOutcome] = useState<AutoPickOutcome | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -32,7 +50,13 @@ export function AutoPickDialog({ plan, courses, semester, onSetRequired, onApply
   const take = Math.min(optionalToTake, optional.length);
 
   const colors = new Map(plan.courses.map((c) => [c.courseId, c.color]));
-  const current = useMemo(() => computeMisery(collectMeetings(plan, courses, semester)), [plan, courses, semester]);
+  const current = useMemo(
+    () => computeMisery(collectMeetings(plan, courses, semester), weights),
+    [plan, courses, semester, weights],
+  );
+  const custom = !isDefault(weights);
+  // Открыта сразу, если веса уже свои; дальше студент сам сворачивает и разворачивает.
+  const [weightsOpen, setWeightsOpen] = useState(custom);
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -45,6 +69,8 @@ export function AutoPickDialog({ plan, courses, semester, onSetRequired, onApply
         required: new Set(required.map((c) => c.course.courseId)),
         optionalToTake: take,
         semester,
+        weights,
+        blocked: props.blocked,
       }),
     );
   };
@@ -135,6 +161,54 @@ export function AutoPickDialog({ plan, courses, semester, onSetRequired, onApply
                   </div>
                 )}
 
+                <details
+                  className="weights"
+                  open={weightsOpen}
+                  onToggle={(e) => setWeightsOpen((e.currentTarget as HTMLDetailsElement).open)}
+                >
+                  <summary>
+                    Your suffering weights{custom ? ' (custom)' : ''}
+                    <span className="muted small"> — what hurts you most?</span>
+                  </summary>
+                  <div className="weights-body">
+                    {WEIGHT_LABELS.map(([key, label]) => (
+                      <label key={key} className="weight-row">
+                        <span>{label}</span>
+                        <input
+                          type="range"
+                          min={0}
+                          max={30}
+                          step={1}
+                          value={weights[key]}
+                          onChange={(e) => props.onWeights({ ...weights, [key]: Number(e.target.value) })}
+                          aria-label={`${label}: points`}
+                        />
+                        <span className="weight-value">{weights[key]}</span>
+                      </label>
+                    ))}
+                    <div className="weights-foot">
+                      <span className="muted small">
+                        Used only for auto-pick. The index on the main screen stays standard, so friends can compare.
+                      </span>
+                      <button
+                        type="button"
+                        className="link-btn"
+                        disabled={!custom}
+                        onClick={() => props.onWeights({ ...MISERY_WEIGHTS })}
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </details>
+
+                {props.blocked.length > 0 && (
+                  <p className="muted small">
+                    Your {props.blocked.length} blocked {props.blocked.length === 1 ? 'time' : 'times'} count as
+                    conflicts, so auto-pick avoids them.
+                  </p>
+                )}
+
                 {candidates.some((c) => c.course.term === 'year') && (
                   <p className="muted small">Yearly courses: the groups chosen here apply to both semesters.</p>
                 )}
@@ -153,8 +227,8 @@ export function AutoPickDialog({ plan, courses, semester, onSetRequired, onApply
         ) : (
           <div className="modal-body">
             <p className="muted small">
-              Your current schedule scores <strong>{current.score}</strong>. Conflict-free options always come
-              first.
+              Your current schedule scores <strong>{current.score}</strong>
+              {custom && ' with your weights'}. Conflict-free options always come first.
             </p>
             {outcome.unschedulable.length > 0 && (
               <p className="hint-warn">
@@ -176,6 +250,7 @@ export function AutoPickDialog({ plan, courses, semester, onSetRequired, onApply
                     courses={courses}
                     colors={colors}
                     current={current.score}
+                    commuteMinutes={props.commuteMinutes}
                     onApply={() => onApply(r)}
                   />
                 ))}
@@ -199,6 +274,7 @@ function ResultCard({
   courses,
   colors,
   current,
+  commuteMinutes,
   onApply,
 }: {
   rank: number;
@@ -206,6 +282,7 @@ function ResultCard({
   courses: ReadonlyMap<string, Course>;
   colors: Map<string, number>;
   current: number;
+  commuteMinutes: number;
   onApply: () => void;
 }) {
   const m = result.misery;
@@ -217,6 +294,7 @@ function ResultCard({
     m.earlyClasses > 0 && `${m.earlyClasses} before 9`,
     m.lateClasses > 0 && `${m.lateClasses} after 18`,
     m.hasFriday && 'Friday',
+    commuteMinutes > 0 && `${formatHours(weeklyCommuteHours(m.campusDays, commuteMinutes))}h on the road`,
   ].filter(Boolean);
 
   return (

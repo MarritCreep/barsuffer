@@ -8,6 +8,8 @@ import {
   type PlacedMeeting,
   type TimeSpan,
 } from '../logic/schedule';
+import type { Sprint } from '../logic/campus';
+import { miseryDelta } from '../logic/preview';
 import { findSection, isCompatible, type Plan } from '../logic/selection';
 import { formatMinutes } from '../logic/time';
 import { place, sessionLabel, TERM_LABEL, timeRange } from './format';
@@ -32,14 +34,20 @@ interface Props {
   slot: TimeSpan | null;
   onSlot: (day: Day, start: number) => void;
   onAutoPick: () => void;
-  /** Удалить курс из расписания (крестик на блоке). */
+  /** Удалить курс или блокировку (крестик на блоке). */
   onRemove: (courseId: string) => void;
+  /** Переходы, на которые не хватает времени («Беги!»). */
+  sprints: Sprint[];
 }
 
 interface Block extends PlacedMeeting {
   ghost: boolean;
   /** Призрак, при выборе которого сменится привязанная группа. */
   needsParent?: string;
+  /** Как изменится индекс страдания, если выбрать этот призрак. */
+  delta?: number;
+  /** «Беги!»: подсказка про переход к этому занятию. */
+  sprint?: string;
   conflict: boolean;
   activeSelected: boolean;
   dim: boolean;
@@ -49,10 +57,14 @@ export function WeekGrid(props: Props) {
   const { plan, semester, onSemester, meetings, conflicts, unscheduled, activeCourse } = props;
   const planned = activeCourse ? plan.courses.find((c) => c.courseId === activeCourse.courseId) : undefined;
   const conflictKeys = new Set(conflicts.flatMap((c) => [c.a.key, c.b.key]));
+  const sprintByKey = new Map(
+    props.sprints.map((s) => [s.to.key, `Run! ≈${s.walk} min walk from ${s.from.building}, ${s.available} min to get there`]),
+  );
 
   const blocks: Block[] = meetings.map((m) => ({
     ...m,
     ghost: false,
+    sprint: sprintByKey.get(m.key),
     conflict: conflictKeys.has(m.key),
     activeSelected: m.courseId === activeCourse?.courseId,
     dim: activeCourse !== null && m.courseId !== activeCourse.courseId,
@@ -60,14 +72,20 @@ export function WeekGrid(props: Props) {
 
   if (activeCourse && planned) {
     for (const section of activeCourse.sections) {
-      if (planned.picks[section.type] === section.sectionNumber) continue;
+      if (!planned.hidden && planned.picks[section.type] === section.sectionNumber) continue;
       const compatible = isCompatible(section, planned.picks);
       const parent = !compatible && section.linkedTo ? findSection(activeCourse, section.linkedTo[0]!) : undefined;
-      for (const m of placeSection(activeCourse, section, semester, planned.color)) {
+      const placed = placeSection(activeCourse, section, semester, planned.color);
+      const delta =
+        placed.length > 0
+          ? miseryDelta(plan, props.courses, semester, activeCourse, section.sectionNumber)
+          : undefined;
+      for (const m of placed) {
         blocks.push({
           ...m,
           key: `ghost-${m.key}`,
           ghost: true,
+          delta,
           needsParent: parent ? sessionLabel(parent.type, parent.sectionNumber) : undefined,
           conflict: false,
           activeSelected: false,
@@ -82,6 +100,7 @@ export function WeekGrid(props: Props) {
   const activeUntimed = activeCourse?.sections.filter((s) => s.schedule.length === 0) ?? [];
 
   const handleClick = (b: Block) => {
+    if (b.isBlock) return;
     if (activeCourse && b.courseId === activeCourse.courseId) {
       props.onToggleSection(activeCourse, b.sectionNumber);
     } else {
@@ -210,27 +229,36 @@ export function WeekGrid(props: Props) {
                     b.conflict && 'conflict',
                     b.activeSelected && 'active',
                     b.dim && 'dim',
+                    b.isBlock && 'busy',
                   ]
                     .filter(Boolean)
                     .join(' ');
                   const where = place(b.building, b.room);
-                  const label = [
-                    b.ghost ? 'Option:' : '',
-                    b.courseName,
-                    sessionLabel(b.type, b.sectionNumber),
-                    DAY_LABEL[b.day],
-                    timeRange(b.start, b.end),
-                    b.lecturer,
-                    where && `room ${where}`,
-                    b.needsParent && `switches to ${b.needsParent}`,
-                    b.conflict && 'conflict',
-                  ]
-                    .filter(Boolean)
-                    .join(', ');
+                  const deltaText =
+                    b.delta === undefined ? '' : b.delta === 0 ? '±0' : b.delta > 0 ? `+${b.delta}` : `−${-b.delta}`;
+                  const label = b.isBlock
+                    ? [`Blocked: ${b.courseName}`, DAY_LABEL[b.day], timeRange(b.start, b.end), b.conflict && 'conflict']
+                        .filter(Boolean)
+                        .join(', ')
+                    : [
+                        b.ghost ? 'Option:' : '',
+                        b.courseName,
+                        sessionLabel(b.type, b.sectionNumber),
+                        DAY_LABEL[b.day],
+                        timeRange(b.start, b.end),
+                        b.lecturer,
+                        where && `room ${where}`,
+                        b.needsParent && `switches to ${b.needsParent}`,
+                        deltaText && `suffering index ${deltaText}`,
+                        b.conflict && 'conflict',
+                        b.sprint,
+                      ]
+                        .filter(Boolean)
+                        .join(', ');
                   return (
                     <div
                       key={b.key}
-                      className={`ev-wrap ${b.activeSelected ? 'active' : ''} ${b.dim ? 'dim' : ''}`}
+                      className={`ev-wrap ${b.activeSelected ? 'active' : ''} ${b.dim ? 'dim' : ''} ${b.isBlock ? 'is-block' : ''}`}
                       style={style}
                     >
                     <button
@@ -241,11 +269,28 @@ export function WeekGrid(props: Props) {
                       title={label}
                     >
                       <span className="ev-name">{b.courseName}</span>
+                      {b.isBlock ? (
+                        <span className="ev-line">Busy · {timeRange(b.start, b.end)}</span>
+                      ) : (
                       <span className="ev-line">
                         {sessionLabel(b.type, b.sectionNumber)}
                         {b.isDemo && <span className="demo-tag">DEMO</span>}
                       </span>
-                      <span className="ev-line ev-time">{timeRange(b.start, b.end)}</span>
+                      )}
+                      {deltaText && (
+                        <span
+                          className={`ev-delta ${b.delta! < 0 ? 'better' : b.delta! > 0 ? 'worse' : ''}`}
+                          aria-hidden="true"
+                        >
+                          {deltaText}
+                        </span>
+                      )}
+                      {b.sprint && (
+                        <span className="ev-run" aria-hidden="true">
+                          Run!
+                        </span>
+                      )}
+                      {!b.isBlock && <span className="ev-line ev-time">{timeRange(b.start, b.end)}</span>}
                       {where && <span className="ev-line">{where}</span>}
                       {b.lecturer && <span className="ev-line ev-lecturer">{b.lecturer}</span>}
                       {b.needsParent && <span className="ev-line ev-note">→ {b.needsParent}</span>}
@@ -260,8 +305,8 @@ export function WeekGrid(props: Props) {
                         type="button"
                         className="ev-remove"
                         onClick={() => props.onRemove(b.courseId)}
-                        aria-label={`Remove ${b.courseName} from schedule`}
-                        title="Remove course (Ctrl+Z to undo)"
+                        aria-label={b.isBlock ? `Remove block ${b.courseName}` : `Remove ${b.courseName} from schedule`}
+                        title={b.isBlock ? 'Remove block (Ctrl+Z to undo)' : 'Remove course (Ctrl+Z to undo)'}
                       >
                         ×
                       </button>

@@ -1,4 +1,11 @@
-import { SESSION_TYPE_ORDER, type Course, type Section, type SessionType } from '../data/types';
+import {
+  SESSION_TYPE_ORDER,
+  type Course,
+  type Day,
+  type Section,
+  type Semester,
+  type SessionType,
+} from '../data/types';
 
 /** Выбранная группа для каждого типа занятий курса: { lecture: "18", exercise: "20" }. */
 export type Picks = Partial<Record<SessionType, string>>;
@@ -14,10 +21,22 @@ export interface PlannedCourse {
   hidden?: boolean;
 }
 
+/** Личная блокировка времени: работа, спорт, что угодно. */
+export interface PersonalBlock {
+  id: string;
+  label: string;
+  day: Day;
+  startTime: string;
+  endTime: string;
+  /** Только в одном семестре; без поля — в обоих. */
+  semester?: Semester;
+}
+
 /** Расписание пользователя. Хранит только стабильные номера курсов и групп. */
 export interface Plan {
   v: 1;
   courses: PlannedCourse[];
+  blocks?: PersonalBlock[];
 }
 
 export const EMPTY_PLAN: Plan = { v: 1, courses: [] };

@@ -373,6 +373,22 @@
       ]
     },
     {
+      "courseId": "99003",
+      "name": "Campus Sprint Demo (north campus)",
+      "credits": 2,
+      "term": "A",
+      "isDemo": true,
+      "sections": [
+        {
+          "sectionNumber": "01",
+          "type": "lecture",
+          "lecturer": "Demo lecturer",
+          "isDemo": true,
+          "schedule": [{ "day": 4, "startTime": "16:00", "endTime": "18:00", "building": "901", "room": "1" }]
+        }
+      ]
+    },
+    {
       "courseId": "99002",
       "name": "Media Research Seminar (demo)",
       "credits": 4,

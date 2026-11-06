@@ -44,8 +44,10 @@ export function saveTheme(theme: Theme): void {
 function isPlan(value: unknown): value is Plan {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as { v?: unknown; courses?: unknown };
+  const blocks = (value as { blocks?: unknown }).blocks;
   return (
     v.v === 1 &&
+    (blocks === undefined || Array.isArray(blocks)) &&
     Array.isArray(v.courses) &&
     v.courses.every(
       (c: unknown) =>

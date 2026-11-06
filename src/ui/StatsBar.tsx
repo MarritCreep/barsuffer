@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { DAY_LABEL, type Semester } from '../data/types';
-import type { CreditsSummary } from '../logic/load';
+import type { Sprint } from '../logic/campus';
+import { weeklyCommuteHours, type CreditsSummary } from '../logic/load';
 import { MISERY_WEIGHTS, type MiseryResult, type MiseryTitle } from '../logic/misery';
-import type { Conflict } from '../logic/schedule';
+import type { Conflict, PlacedMeeting } from '../logic/schedule';
 import { formatHours, sessionLabel, timeRange } from './format';
 
 interface Props {
@@ -11,10 +13,21 @@ interface Props {
   hours: number;
   credits: CreditsSummary;
   conflicts: Conflict[];
+  sprints: Sprint[];
+  commuteMinutes: number;
+  onCommuteMinutes: (minutes: number) => void;
 }
 
-export function StatsBar({ semester, misery, title, hours, credits, conflicts }: Props) {
+function describe(m: PlacedMeeting): string {
+  if (m.isBlock) return `your block “${m.courseName}” (${timeRange(m.start, m.end)})`;
+  return `${m.courseName} (${sessionLabel(m.type, m.sectionNumber)}, ${timeRange(m.start, m.end)})`;
+}
+
+export function StatsBar(props: Props) {
+  const { semester, misery, title, hours, credits, conflicts, sprints, commuteMinutes } = props;
+  const [editingCommute, setEditingCommute] = useState(false);
   const level = misery.score >= 70 ? 'high' : misery.score >= 40 ? 'mid' : 'low';
+  const commute = weeklyCommuteHours(misery.campusDays, commuteMinutes);
   const rows: [string, string, number][] = [
     ['Days on campus', `${misery.campusDays} × ${MISERY_WEIGHTS.campusDay}`, misery.points.days],
     ['Classes before 09:00', `${misery.earlyClasses} × ${MISERY_WEIGHTS.earlyClass}`, misery.points.early],
@@ -75,17 +88,69 @@ export function StatsBar({ semester, misery, title, hours, credits, conflicts }:
           <span className="kpi-value">{conflicts.length}</span>
           <span className="kpi-label">{conflicts.length === 1 ? 'conflict' : 'conflicts'}</span>
         </div>
+        <div className="kpi kpi-commute">
+          {editingCommute ? (
+            <label className="commute-edit">
+              <input
+                type="number"
+                min={0}
+                max={300}
+                step={5}
+                inputMode="numeric"
+                defaultValue={commuteMinutes || ''}
+                placeholder="min"
+                aria-label="Commute one way, minutes"
+                autoFocus
+                onBlur={(e) => {
+                  const v = Math.max(0, Math.min(300, Math.round(Number(e.target.value) || 0)));
+                  props.onCommuteMinutes(v);
+                  setEditingCommute(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                }}
+              />
+              <span className="kpi-label">min one way</span>
+            </label>
+          ) : (
+            <button
+              type="button"
+              className="kpi-btn"
+              onClick={() => setEditingCommute(true)}
+              aria-label={
+                commuteMinutes > 0
+                  ? `${formatHours(commute)} hours on the road per week, ${commuteMinutes} minutes one way. Change`
+                  : 'Set your commute time'
+              }
+            >
+              <span className="kpi-value">{commuteMinutes > 0 ? formatHours(commute) : '—'}</span>
+              <span className="kpi-label">
+                {commuteMinutes > 0 ? `hrs on the road / week (${commuteMinutes} min one way)` : 'set commute time'}
+              </span>
+            </button>
+          )}
+        </div>
       </div>
 
       {conflicts.length > 0 && (
         <ul className="conflicts" aria-label="Conflicts">
           {conflicts.map(({ a, b }) => (
             <li key={`${a.key}|${b.key}`}>
-              <strong>{DAY_LABEL[a.day]}</strong> {a.courseName} ({sessionLabel(a.type, a.sectionNumber)},{' '}
-              {timeRange(a.start, a.end)}) overlaps {b.courseName} ({sessionLabel(b.type, b.sectionNumber)},{' '}
-              {timeRange(b.start, b.end)})
+              <strong>{DAY_LABEL[a.day]}</strong> {describe(a)} overlaps {describe(b)}
             </li>
           ))}
+        </ul>
+      )}
+
+      {sprints.length > 0 && (
+        <ul className="sprints" aria-label="Tight walks between classes">
+          {sprints.map((s) => (
+            <li key={`${s.from.key}|${s.to.key}`}>
+              <strong>Run!</strong> {DAY_LABEL[s.day]} {timeRange(s.from.end, s.to.start)}: building {s.from.building} →{' '}
+              {s.to.building}, ≈{s.walk} min walk, {s.available} min to get there
+            </li>
+          ))}
+          <li className="muted small">Experimental: walking times are rough estimates from the campus layout.</li>
         </ul>
       )}
     </div>

@@ -18,6 +18,8 @@ export interface PlacedMeeting {
   room?: string;
   color: number;
   isDemo: boolean;
+  /** Личная блокировка, а не занятие: не входит в индекс и часы, но даёт накладки. */
+  isBlock?: boolean;
 }
 
 export interface TimeSpan {

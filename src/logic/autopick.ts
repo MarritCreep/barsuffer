@@ -1,5 +1,5 @@
 import type { Course, Day, Semester } from '../data/types';
-import { computeMisery, MISERY_WEIGHTS, type MiseryResult } from './misery';
+import { computeMisery, MISERY_WEIGHTS, type MiseryResult, type MiseryWeights } from './misery';
 import { overlaps, sectionMeetings, termIncludes, type TimeSpan } from './schedule';
 import { findSection, isCompatible, requiredTypes, sectionsOfType, type Picks } from './selection';
 import { toMinutes } from './time';
@@ -26,6 +26,10 @@ export interface AutoPickRequest {
   limit?: number;
   /** Предел перебора, чтобы интерфейс не зависал на огромных каталогах. */
   maxNodes?: number;
+  /** Свои веса индекса; по умолчанию стандартные. */
+  weights?: MiseryWeights;
+  /** Занятое время (личные блокировки): пересечение с ним считается накладкой. */
+  blocked?: readonly TimeSpan[];
 }
 
 export interface AutoPickResult {
@@ -117,6 +121,8 @@ export function autoPick(request: AutoPickRequest): AutoPickOutcome {
   const { semester, required } = request;
   const limit = request.limit ?? 5;
   const maxNodes = request.maxNodes ?? 200_000;
+  const weights = request.weights ?? MISERY_WEIGHTS;
+  const blocked = request.blocked ?? [];
 
   const unschedulable: string[] = [];
   const items: Item[] = [];
@@ -160,11 +166,11 @@ export function autoPick(request: AutoPickRequest): AutoPickOutcome {
   /** Нижняя граница стоимости: дни, пятница и накладки только растут при добавлении курсов. */
   const lowerBound = (conflicts: number) =>
     conflicts * CONFLICT_COST +
-    dayCount.size * MISERY_WEIGHTS.campusDay +
-    (dayCount.has(6) ? MISERY_WEIGHTS.friday : 0);
+    dayCount.size * weights.campusDay +
+    (dayCount.has(6) ? weights.friday : 0);
 
   const record = (conflicts: number) => {
-    const misery = computeMisery(chosen);
+    const misery = computeMisery(chosen, weights);
     const cost = conflicts * CONFLICT_COST + misery.raw;
     if (cost > worstCost()) return;
     const key = `${[...taken].sort().join('|')}#${signature(chosen)}`;
@@ -209,6 +215,7 @@ export function autoPick(request: AutoPickRequest): AutoPickOutcome {
         let added = 0;
         for (const span of option.spans) {
           for (const other of chosen) if (overlaps(span, other)) added++;
+          for (const busy of blocked) if (overlaps(span, busy)) added++;
           chosen.push(span);
           owners.push(item.course.courseId);
           dayCount.set(span.day, (dayCount.get(span.day) ?? 0) + 1);

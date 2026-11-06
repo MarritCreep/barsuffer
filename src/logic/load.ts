@@ -11,6 +11,11 @@ export function academicHours(meetings: readonly TimeSpan[]): number {
   return Math.round((minutes / 60) * 10) / 10;
 }
 
+/** Часы в дороге за неделю: туда и обратно в каждый день в кампусе. */
+export function weeklyCommuteHours(campusDays: number, oneWayMinutes: number): number {
+  return Math.round(((campusDays * 2 * oneWayMinutes) / 60) * 10) / 10;
+}
+
 export interface CreditsSummary {
   /** Сумма נ"ז по курсам с известными кредитами. Годовой курс считается один раз. */
   total: number;

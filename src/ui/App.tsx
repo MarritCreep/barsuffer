@@ -1,21 +1,28 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { catalog, courseMap } from '../data/catalog';
 import type { Course, Semester } from '../data/types';
+import { blockMeetings, isBlockId, nextBlockId } from '../logic/blocks';
+import { findSprints } from '../logic/campus';
 import { academicHours, totalCredits } from '../logic/load';
 import { computeMisery, pickTitle } from '../logic/misery';
 import { collectMeetings, collectUnscheduled, findConflicts, type TimeSpan } from '../logic/schedule';
 import { hourSlot, optionsForSlot } from '../logic/slots';
+import { formatMinutes } from '../logic/time';
+import { dayOf, semesterOn } from '../logic/today';
 import { initHistory, withHistory } from '../state/history';
+import { loadSettings, saveSettings, type Settings } from '../state/settings';
 import { loadPlan, loadTheme, savePlan, saveTheme, type Theme } from '../state/storage';
 import { AutoPickDialog } from './AutoPickDialog';
+import { CampusMap } from './CampusMap';
 import { CoursePanel } from './CoursePanel';
 import { Header } from './Header';
 import { planReducer } from './planReducer';
 import { SlotSheet } from './SlotSheet';
 import { StatsBar } from './StatsBar';
+import { TodayPanel } from './TodayPanel';
 import { WeekGrid } from './WeekGrid';
 
-type MobileTab = 'courses' | 'week';
+type MobileTab = 'today' | 'courses' | 'week';
 
 const planHistoryReducer = withHistory(planReducer);
 
@@ -27,17 +34,30 @@ function isTyping(target: EventTarget | null): boolean {
   );
 }
 
+/** Текущее время, обновляется раз в 30 секунд — для «Сегодня». */
+function useNow(): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+  return now;
+}
+
 export function App() {
   const [history, dispatch] = useReducer(planHistoryReducer, undefined, () => initHistory(loadPlan()));
   const plan = history.present;
+  const now = useNow();
+  const [settings, setSettings] = useState<Settings>(loadSettings);
   const [autoPickOpen, setAutoPickOpen] = useState(false);
   const [theme, setTheme] = useState<Theme>(loadTheme);
-  const [semester, setSemester] = useState<Semester>('A');
+  const [semester, setSemester] = useState<Semester>(() => semesterOn(new Date()) ?? 'A');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tab, setTab] = useState<MobileTab>('courses');
   const [slot, setSlot] = useState<TimeSpan | null>(null);
 
   useEffect(() => savePlan(plan), [plan]);
+  useEffect(() => saveSettings(settings), [settings]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -49,16 +69,26 @@ export function App() {
     ? courseMap.get(activeId) ?? null
     : null;
 
+  // Занятия — для индекса и часов; блокировки — только для сетки и накладок.
   const meetings = useMemo(() => collectMeetings(plan, courseMap, semester), [plan, semester]);
+  const blocks = useMemo(() => blockMeetings(plan, semester), [plan, semester]);
+  const busy = useMemo(() => [...meetings, ...blocks], [meetings, blocks]);
   const unscheduled = useMemo(() => collectUnscheduled(plan, courseMap, semester), [plan, semester]);
-  const conflicts = useMemo(() => findConflicts(meetings), [meetings]);
+  const conflicts = useMemo(() => findConflicts(busy), [busy]);
+  const sprints = useMemo(() => findSprints(meetings), [meetings]);
   const misery = useMemo(() => computeMisery(meetings), [meetings]);
   const title = pickTitle(misery, meetings.length);
   const hours = academicHours(meetings);
   const credits = totalCredits(plan, courseMap);
   const slotOptions = useMemo(
-    () => (slot ? optionsForSlot(catalog.courses, plan, semester, slot, meetings) : []),
-    [slot, plan, semester, meetings],
+    () => (slot ? optionsForSlot(catalog.courses, plan, semester, slot, busy) : []),
+    [slot, plan, semester, busy],
+  );
+
+  const classesFor = useCallback((s: Semester) => collectMeetings(plan, courseMap, s), [plan]);
+  const busyFor = useCallback(
+    (s: Semester) => [...collectMeetings(plan, courseMap, s), ...blockMeetings(plan, s)],
+    [plan],
   );
 
   /** Включить режим выбора групп курса; переключает семестр на семестр курса. */
@@ -76,6 +106,9 @@ export function App() {
     },
     [startPicking],
   );
+
+  const remove = (id: string) =>
+    isBlockId(id) ? dispatch({ kind: 'removeBlock', id: id.slice('block:'.length) }) : dispatch({ kind: 'remove', courseId: id });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -100,6 +133,8 @@ export function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const todaySemester = semesterOn(now);
+
   return (
     <div className="app" data-tab={tab}>
       <Header
@@ -113,18 +148,23 @@ export function App() {
       />
 
       <main className="layout">
-        <section className="pane pane-courses" aria-label="Courses">
-          <CoursePanel
-            catalog={catalog}
-            plan={plan}
-            activeId={activeCourse?.courseId ?? null}
-            onAdd={addCourse}
-            onRemove={(courseId) => dispatch({ kind: 'remove', courseId })}
-            onPick={startPicking}
-            onClear={() => dispatch({ kind: 'clear' })}
-            onSetHidden={(courseId, hidden) => dispatch({ kind: 'setHidden', courseId, hidden })}
-          />
-        </section>
+        <div className="left-col">
+          <section className="pane pane-today" aria-label="Today">
+            <TodayPanel now={now} meetingsFor={busyFor} />
+          </section>
+          <section className="pane pane-courses" aria-label="Courses">
+            <CoursePanel
+              catalog={catalog}
+              plan={plan}
+              activeId={activeCourse?.courseId ?? null}
+              onAdd={addCourse}
+              onRemove={(courseId) => dispatch({ kind: 'remove', courseId })}
+              onPick={startPicking}
+              onClear={() => dispatch({ kind: 'clear' })}
+              onSetHidden={(courseId, hidden) => dispatch({ kind: 'setHidden', courseId, hidden })}
+            />
+          </section>
+        </div>
 
         <section className="pane pane-week" aria-label="Week">
           <StatsBar
@@ -134,13 +174,16 @@ export function App() {
             hours={hours}
             credits={credits}
             conflicts={conflicts}
+            sprints={sprints}
+            commuteMinutes={settings.commuteMinutes}
+            onCommuteMinutes={(commuteMinutes) => setSettings((s) => ({ ...s, commuteMinutes }))}
           />
           <WeekGrid
             plan={plan}
             courses={courseMap}
             semester={semester}
             onSemester={setSemester}
-            meetings={meetings}
+            meetings={busy}
             conflicts={conflicts}
             unscheduled={unscheduled}
             activeCourse={activeCourse}
@@ -163,7 +206,8 @@ export function App() {
               setSlot(null);
               setAutoPickOpen(true);
             }}
-            onRemove={(courseId) => dispatch({ kind: 'remove', courseId })}
+            onRemove={remove}
+            sprints={sprints}
           />
         </section>
       </main>
@@ -179,6 +223,20 @@ export function App() {
             dispatch({ kind: 'select', course, sectionNumber: section.sectionNumber })
           }
           onClose={() => setSlot(null)}
+          onAddBlock={(label, end, bothSemesters) => {
+            dispatch({
+              kind: 'addBlock',
+              block: {
+                id: nextBlockId(plan),
+                label,
+                day: slot.day,
+                startTime: formatMinutes(slot.start),
+                endTime: formatMinutes(end),
+                semester: bothSemesters ? undefined : semester,
+              },
+            });
+            setSlot(null);
+          }}
         />
       )}
 
@@ -187,6 +245,10 @@ export function App() {
           plan={plan}
           courses={courseMap}
           semester={semester}
+          weights={settings.weights}
+          onWeights={(weights) => setSettings((s) => ({ ...s, weights }))}
+          blocked={blocks}
+          commuteMinutes={settings.commuteMinutes}
           onSetRequired={(courseId, required) => dispatch({ kind: 'setRequired', courseId, required })}
           onApply={(result) => {
             dispatch({ kind: 'applyAuto', picks: result.picks, skipped: result.skipped });
@@ -196,6 +258,13 @@ export function App() {
           onClose={() => setAutoPickOpen(false)}
         />
       )}
+
+      <CampusMap
+        meetingsFor={classesFor}
+        initialSemester={todaySemester ?? semester}
+        initialDay={todaySemester ? dayOf(now) : null}
+        hidden={slot !== null || autoPickOpen}
+      />
 
       <footer className="footer">
         <p>
@@ -211,6 +280,9 @@ export function App() {
       </footer>
 
       <nav className="tabbar" aria-label="Sections">
+        <button type="button" className={tab === 'today' ? 'on' : ''} onClick={() => setTab('today')}>
+          Today
+        </button>
         <button type="button" className={tab === 'courses' ? 'on' : ''} onClick={() => setTab('courses')}>
           Courses <span className="count">{plan.courses.length}</span>
         </button>
