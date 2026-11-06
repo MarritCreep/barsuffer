@@ -369,6 +369,81 @@ test('today: semester progress and a rain warning', async ({ page, isMobile }) =
   await shot(page, '19-today-rain');
 });
 
+// Настоящий PDF из Инбара лежит только локально в _private/ (не в git) — без него тест пропускается.
+const INBAR_PDF = 'C:/dev/BarSuffer/_private/Schedule.pdf';
+
+test('import the schedule from an Inbar PDF', async ({ page, isMobile }) => {
+  const fs = await import('node:fs');
+  test.skip(!fs.existsSync(INBAR_PDF), 'no local Inbar PDF in _private/');
+  await page.getByRole('button', { name: /Import from Inbar/ }).click();
+  const dialog = page.getByRole('dialog', { name: 'Your schedule from Inbar' });
+  await dialog.getByLabel('Inbar schedule PDF').setInputFiles(INBAR_PDF);
+  // Сначала проверка: что прочитано и что изменится. План ещё не тронут.
+  await expect(dialog.getByText('Check that we read your print correctly')).toBeVisible({ timeout: 15000 });
+  await expect(dialog.getByText('print of the whole year')).toBeVisible();
+  await expect(dialog.locator('.import-read li')).toHaveCount(17);
+  await expect(dialog.getByText('63013-18 · Tue 08:00–10:00 · 105-4 · Elie Friedman')).toBeVisible();
+  await expect(dialog.locator('.import-summary')).toContainText('+ 17 added');
+  await expect(dialog.locator('.import-errors')).toHaveCount(0);
+  await shot(page, '20-import-preview');
+
+  // «Не менять» — ничего не происходит.
+  await dialog.getByRole('button', { name: 'Don’t change' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('.my-course')).toHaveCount(0);
+
+  // Снова, и теперь применить.
+  await page.getByRole('button', { name: /Import from Inbar/ }).click();
+  await dialog.getByLabel('Inbar schedule PDF').setInputFiles(INBAR_PDF);
+  await dialog.getByRole('button', { name: 'Apply changes' }).click();
+  await expect(page.locator('.my-course')).toHaveCount(17);
+
+  if (isMobile) await page.getByRole('button', { name: /^Week/ }).click();
+  await expect(page.locator('.misery-score')).toContainText('30'); // контрольный пример, семестр A
+  // Имя студента из PDF никуда не попало.
+  const stored = await page.evaluate(() => localStorage.getItem('barsuffer:plan:v1'));
+  expect(stored).not.toMatch(/Tikhaev|Logged/);
+
+  // Отменить импорт кнопкой в уведомлении.
+  await page.getByRole('status').getByRole('button', { name: 'Undo' }).click();
+  if (isMobile) await page.getByRole('button', { name: /^Courses/ }).click();
+  await expect(page.locator('.my-course')).toHaveCount(0);
+});
+
+test('save the schedule to a file and load it back', async ({ page }) => {
+  await seed(page, [
+    ['63013', { lecture: '18' }],
+    ['183138', { lecture: '01' }],
+  ]);
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Save file' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^barsuffer-\d{4}-\d{2}-\d{2}\.json$/);
+  const path = await file.path();
+
+  // Как будто браузер очистили.
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
+  await expect(page.locator('.my-course')).toHaveCount(0);
+
+  await page.getByLabel('Open a BarSuffer schedule file').setInputFiles(path);
+  // Сначала подтверждение, план ещё пустой.
+  const confirm = page.getByRole('dialog', { name: 'Load this schedule?' });
+  await expect(confirm).toContainText('2 courses');
+  await expect(page.locator('.my-course')).toHaveCount(0);
+  await confirm.getByRole('button', { name: 'Apply changes' }).click();
+  await expect(page.locator('.my-course')).toHaveCount(2);
+  await expect(page.getByRole('status')).toContainText('Loaded 2 courses');
+
+  await page.getByRole('status').getByRole('button', { name: 'Undo' }).click();
+  await expect(page.locator('.my-course')).toHaveCount(0);
+
+  // «Не менять» ничего не трогает.
+  await page.getByLabel('Open a BarSuffer schedule file').setInputFiles(path);
+  await confirm.getByRole('button', { name: 'Don’t change' }).click();
+  await expect(page.locator('.my-course')).toHaveCount(0);
+});
+
 test('real sample schedule renders with conflicts, theme toggles', async ({ page, isMobile }) => {
   await page.evaluate(() => {
     const picks: [string, Record<string, string>][] = [

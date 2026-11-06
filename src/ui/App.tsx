@@ -11,6 +11,7 @@ import { collectMeetings, collectUnscheduled, findConflicts, type TimeSpan } fro
 import { hourSlot, optionsForSlot } from '../logic/slots';
 import { formatMinutes } from '../logic/time';
 import { dayOf, semesterOn } from '../logic/today';
+import { backupFileName, makeBackup, readBackup } from '../state/backup';
 import { initHistory, withHistory } from '../state/history';
 import { loadSettings, saveSettings, type Settings } from '../state/settings';
 import { loadPlan, loadTheme, savePlan, saveTheme, type Theme } from '../state/storage';
@@ -18,6 +19,9 @@ import { AutoPickDialog } from './AutoPickDialog';
 import { CampusMap } from './CampusMap';
 import { CoursePanel } from './CoursePanel';
 import { Header } from './Header';
+import { BackupDialog } from './BackupDialog';
+import { ImportDialog } from './ImportDialog';
+import type { Plan } from '../logic/selection';
 import { planReducer } from './planReducer';
 import { SlotSheet } from './SlotSheet';
 import { StatsBar } from './StatsBar';
@@ -56,6 +60,17 @@ export function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [autoPickOpen, setAutoPickOpen] = useState(false);
   const [wrappedOpen, setWrappedOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [notice, setNotice] = useState<{ text: string; kind: 'ok' | 'error'; undo?: () => void } | null>(null);
+  const [pendingBackup, setPendingBackup] = useState<
+    { fileName: string; plan: Plan; settings: Settings; dropped: string[] } | null
+  >(null);
+
+  useEffect(() => {
+    if (!notice) return;
+    const id = window.setTimeout(() => setNotice(null), 6000);
+    return () => window.clearTimeout(id);
+  }, [notice]);
   const forecast = useForecast();
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const [semester, setSemester] = useState<Semester>(() => semesterOn(new Date()) ?? 'A');
@@ -128,6 +143,8 @@ export function App() {
         setSlot(null);
         setAutoPickOpen(false);
         setWrappedOpen(false);
+        setImportOpen(false);
+        setPendingBackup(null);
         return;
       }
       if (!(e.ctrlKey || e.metaKey) || e.altKey || isTyping(e.target)) return;
@@ -171,6 +188,28 @@ export function App() {
               onPick={startPicking}
               onClear={() => dispatch({ kind: 'clear' })}
               onSetHidden={(courseId, hidden) => dispatch({ kind: 'setHidden', courseId, hidden })}
+              onImportInbar={() => setImportOpen(true)}
+              onSaveFile={() => {
+                const blob = new Blob([makeBackup(plan, settings)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = backupFileName();
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                setNotice({ text: 'Saved. Open this file later to get your schedule back.', kind: 'ok' });
+              }}
+              onOpenFile={(file) => {
+                void file.text().then((text) => {
+                  const result = readBackup(text, courseMap);
+                  if (!result.ok) {
+                    setNotice({ text: result.error, kind: 'error' });
+                    return;
+                  }
+                  // Сначала показать содержимое; применяется только по «Apply changes».
+                  setPendingBackup({ fileName: file.name, plan: result.plan, settings: result.settings, dropped: result.dropped });
+                });
+              }}
             />
           </section>
         </div>
@@ -286,10 +325,77 @@ export function App() {
         meetingsFor={classesFor}
         initialSemester={todaySemester ?? semester}
         initialDay={todaySemester ? dayOf(now) : null}
-        hidden={slot !== null || autoPickOpen || wrappedOpen}
+        hidden={slot !== null || autoPickOpen || wrappedOpen || importOpen}
         gate={settings.gate}
         onGate={(gate) => setSettings((s) => ({ ...s, gate }))}
       />
+
+      {importOpen && (
+        <ImportDialog
+          plan={plan}
+          courses={courseMap}
+          onApply={(next) => {
+            const previous = plan;
+            dispatch({ kind: 'replacePlan', plan: next });
+            setImportOpen(false);
+            setNotice({
+              text: 'Imported from Inbar.',
+              kind: 'ok',
+              undo: () => dispatch({ kind: 'replacePlan', plan: previous }),
+            });
+          }}
+          onClose={() => setImportOpen(false)}
+        />
+      )}
+
+      {pendingBackup && (
+        <BackupDialog
+          fileName={pendingBackup.fileName}
+          incoming={pendingBackup.plan}
+          current={plan}
+          dropped={pendingBackup.dropped}
+          courses={courseMap}
+          onCancel={() => setPendingBackup(null)}
+          onApply={() => {
+            const previousSettings = settings;
+            const previousPlan = plan;
+            dispatch({ kind: 'replacePlan', plan: pendingBackup.plan });
+            setSettings(pendingBackup.settings);
+            setPendingBackup(null);
+            setNotice({
+              text: `Loaded ${pendingBackup.plan.courses.length} ${pendingBackup.plan.courses.length === 1 ? 'course' : 'courses'} from the file.`,
+              kind: 'ok',
+              undo: () => {
+                dispatch({ kind: 'replacePlan', plan: previousPlan });
+                setSettings(previousSettings);
+              },
+            });
+          }}
+        />
+      )}
+
+      {notice && (
+        <div className={`notice ${notice.kind}`} role="status">
+          <span>{notice.text}</span>
+          <span className="notice-actions">
+            {notice.undo && (
+              <button
+                type="button"
+                className="btn btn-quiet btn-small"
+                onClick={() => {
+                  notice.undo?.();
+                  setNotice({ text: 'Undone — your previous schedule is back.', kind: 'ok' });
+                }}
+              >
+                Undo
+              </button>
+            )}
+            <button type="button" className="icon-btn" onClick={() => setNotice(null)} aria-label="Dismiss">
+              ×
+            </button>
+          </span>
+        </div>
+      )}
 
       {wrappedOpen && (
         <Wrapped

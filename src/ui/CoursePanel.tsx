@@ -12,6 +12,9 @@ interface Props {
   onPick: (course: Course) => void;
   onClear: () => void;
   onSetHidden: (courseId: string, hidden: boolean) => void;
+  onImportInbar: () => void;
+  onSaveFile: () => void;
+  onOpenFile: (file: File) => void;
 }
 
 /** Поиск по названию, номеру курса (с дефисами или без) и преподавателю. */
@@ -24,7 +27,8 @@ export function matchCourse(course: Course, query: string): boolean {
   return course.sections.some((s) => s.lecturer?.toLowerCase().includes(q));
 }
 
-export function CoursePanel({ catalog, plan, activeId, onAdd, onRemove, onPick, onClear, onSetHidden }: Props) {
+export function CoursePanel(props: Props) {
+  const { catalog, plan, activeId, onAdd, onRemove, onPick, onClear, onSetHidden } = props;
   const [query, setQuery] = useState('');
   const planned = new Set(plan.courses.map((c) => c.courseId));
   const results = useMemo(
@@ -44,8 +48,34 @@ export function CoursePanel({ catalog, plan, activeId, onAdd, onRemove, onPick, 
             </button>
           )}
         </div>
+        <div className="plan-tools">
+          <button type="button" className="btn btn-quiet btn-small" onClick={props.onImportInbar}>
+            ⇪ Import from Inbar
+          </button>
+          <button
+            type="button"
+            className="btn btn-quiet btn-small"
+            onClick={props.onSaveFile}
+            title="Download your schedule and settings as a file"
+          >
+            Save file
+          </button>
+          <label className="btn btn-quiet btn-small file-btn" title="Load a schedule file saved earlier">
+            Open file
+            <input
+              type="file"
+              accept="application/json,.json"
+              aria-label="Open a BarSuffer schedule file"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) props.onOpenFile(file);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
         {plan.courses.length === 0 ? (
-          <p className="empty">Nothing yet. Find a course below and add it.</p>
+          <p className="empty">Nothing yet. Find a course below, or import your schedule from Inbar.</p>
         ) : (
           <ul className="my-courses">
             {plan.courses.map((pc) => {

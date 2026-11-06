@@ -20,6 +20,8 @@ export type PlanAction =
   | { kind: 'applyAuto'; picks: Record<string, Picks>; skipped: string[] }
   | { kind: 'addBlock'; block: PersonalBlock }
   | { kind: 'removeBlock'; id: string }
+  /** Готовый план целиком (импорт из Инбара) — одним шагом, чтобы Ctrl+Z отменял весь импорт. */
+  | { kind: 'replacePlan'; plan: Plan }
   | { kind: 'clear' };
 
 /** Меняет один курс; если ничего не изменилось — возвращает тот же план (для истории это no-op). */
@@ -83,6 +85,8 @@ export function planReducer(plan: Plan, action: PlanAction): Plan {
     case 'removeBlock':
       if (!plan.blocks?.some((b) => b.id === action.id)) return plan;
       return { ...plan, blocks: plan.blocks.filter((b) => b.id !== action.id) };
+    case 'replacePlan':
+      return action.plan;
     case 'clear':
       // Блокировки — это не курсы, «Clear all» их не трогает.
       if (plan.courses.length === 0) return plan;

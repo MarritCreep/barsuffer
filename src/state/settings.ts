@@ -16,26 +16,29 @@ export interface Settings {
 
 export const DEFAULT_SETTINGS: Settings = { commuteMinutes: 0, weights: { ...MISERY_WEIGHTS }, gate: '' };
 
+/** Проверяет и чистит настройки из любого источника (localStorage, файл резервной копии). */
+export function sanitizeSettings(value: unknown): Settings {
+  const parsed = (typeof value === 'object' && value !== null ? value : {}) as Partial<Settings>;
+  const weights: MiseryWeights = { ...MISERY_WEIGHTS };
+  for (const k of Object.keys(weights) as (keyof MiseryWeights)[]) {
+    const v = parsed.weights?.[k];
+    if (typeof v === 'number' && v >= 0 && v <= 50) weights[k] = v;
+  }
+  const commute = parsed.commuteMinutes;
+  const gate = typeof parsed.gate === 'string' ? parsed.gate : '';
+  return {
+    commuteMinutes: typeof commute === 'number' && commute >= 0 && commute <= 300 ? commute : 0,
+    weights,
+    gate: /^gate-\d+$/.test(gate) ? gate : '',
+  };
+}
+
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    const parsed = (raw ? JSON.parse(raw) : {}) as Partial<Settings>;
-    const weights: MiseryWeights = { ...MISERY_WEIGHTS };
-    for (const k of Object.keys(weights) as (keyof MiseryWeights)[]) {
-      const v = parsed.weights?.[k];
-      if (typeof v === 'number' && v >= 0 && v <= 50) weights[k] = v;
-    }
-    const commute = parsed.commuteMinutes;
-    let gate = typeof parsed.gate === 'string' ? parsed.gate : '';
-    if (!raw) {
-      const legacy = localStorage.getItem(LEGACY_GATE_KEY);
-      if (legacy) gate = JSON.parse(legacy) as string;
-    }
-    return {
-      commuteMinutes: typeof commute === 'number' && commute >= 0 && commute <= 300 ? commute : 0,
-      weights,
-      gate: /^gate-\d+$/.test(gate) ? gate : '',
-    };
+    if (raw) return sanitizeSettings(JSON.parse(raw));
+    const legacy = localStorage.getItem(LEGACY_GATE_KEY);
+    return sanitizeSettings({ gate: legacy ? (JSON.parse(legacy) as string) : '' });
   } catch {
     return DEFAULT_SETTINGS;
   }

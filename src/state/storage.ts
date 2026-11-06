@@ -41,7 +41,7 @@ export function saveTheme(theme: Theme): void {
   }
 }
 
-function isPlan(value: unknown): value is Plan {
+export function isPlan(value: unknown): value is Plan {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as { v?: unknown; courses?: unknown };
   const blocks = (value as { blocks?: unknown }).blocks;
