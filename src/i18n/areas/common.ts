@@ -99,6 +99,7 @@ const en = {
   'notice.imported': 'Imported from Inbar.',
   'notice.loaded': { one: 'Loaded {n} course from the file.', other: 'Loaded {n} courses from the file.' },
   'notice.undone': 'Undone — your previous schedule is back.',
+  'notice.cleared': 'All courses removed. Changed your mind? Undo.',
 
   'footer.unofficial': 'Unofficial draft planner.',
   'footer.text':
@@ -209,6 +210,7 @@ const ru: Dict<typeof en> = {
     other: 'Из файла загружено {n} курса.',
   },
   'notice.undone': 'Отменено — прежнее расписание вернулось.',
+  'notice.cleared': 'Все курсы убраны. Передумали? «Отменить».',
 
   'footer.unofficial': 'Неофициальный черновой планировщик.',
   'footer.text':
@@ -314,6 +316,7 @@ const he: Dict<typeof en> = {
   'notice.imported': 'יובא מאינבר.',
   'notice.loaded': { one: 'נטען קורס אחד מהקובץ.', other: 'נטענו {n} קורסים מהקובץ.' },
   'notice.undone': 'בוטל — המערכת הקודמת חזרה.',
+  'notice.cleared': 'כל הקורסים הוסרו. התחרטתם? „ביטול פעולה”.',
 
   'footer.unofficial': 'מתכנן טיוטה לא רשמי.',
   'footer.text':

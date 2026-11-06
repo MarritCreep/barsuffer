@@ -12,6 +12,32 @@
   cursor: pointer;
 }
 
+/* Плашка «это пример расписания» — пока открыт пример, ничего не сохраняется. */
+.sample-banner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  max-width: 1400px;
+  margin: 12px auto 0;
+  width: calc(100% - 32px);
+  padding: 10px 14px;
+  border: 1px solid var(--warn);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--warn) 14%, var(--surface));
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sample-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* Шапка на телефоне: язык, отмена и тема переносятся под дату данных, а не вылезают за экран. */
 @media (max-width: 899px) {
   .header-meta {

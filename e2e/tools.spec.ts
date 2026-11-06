@@ -23,9 +23,67 @@ async function openTool(page: Page, isMobile: boolean, name: string) {
 async function loadSample(page: Page, isMobile: boolean) {
   await openTool(page, isMobile, 'Tour');
   await page.getByRole('button', { name: 'Try a sample schedule' }).click();
-  await expect(page.getByText('Sample schedule loaded.')).toBeVisible();
+  await expect(page.getByText('You’re looking at a sample schedule.')).toBeVisible();
   await page.getByRole('button', { name: 'Skip' }).click();
 }
+
+const savedPlan = (page: Page) => page.evaluate(() => localStorage.getItem('barsuffer:plan:v1'));
+
+test('the tour sample never overwrites your own schedule', async ({ page, isMobile }) => {
+  // Своё расписание: один курс.
+  await page.evaluate(() =>
+    localStorage.setItem('barsuffer:plan:v1', JSON.stringify({ v: 1, courses: [{ courseId: '63013', color: 0, picks: { lecture: '18' } }] })),
+  );
+  await page.reload();
+  const mine = await savedPlan(page);
+
+  await loadSample(page, isMobile);
+  if (isMobile) await page.getByRole('button', { name: /^Courses/ }).click();
+  await expect(page.locator('.my-course')).not.toHaveCount(1);
+  // Пример виден, но в хранилище — по-прежнему своё.
+  expect(await savedPlan(page)).toBe(mine);
+
+  // Перезагрузка — своё расписание на месте.
+  await page.reload();
+  await expect(page.locator('.my-course')).toHaveCount(1);
+
+  // Выход из примера кнопкой тоже возвращает своё.
+  await loadSample(page, isMobile);
+  await page.getByRole('button', { name: 'Back to my schedule' }).click();
+  if (isMobile) await page.getByRole('button', { name: /^Courses/ }).click();
+  await expect(page.locator('.my-course')).toHaveCount(1);
+  expect(await savedPlan(page)).toBe(mine);
+
+  // «Оставить пример» — только по явному выбору, и это можно отменить.
+  await loadSample(page, isMobile);
+  await page.getByRole('button', { name: 'Keep the sample (replaces mine)' }).click();
+  expect(await savedPlan(page)).not.toBe(mine);
+  await page.getByRole('status').getByRole('button', { name: 'Undo' }).click();
+  await expect.poll(() => savedPlan(page)).toBe(mine);
+});
+
+test('“Clear all” can be undone from the notice', async ({ page, isMobile }) => {
+  await page.evaluate(() =>
+    localStorage.setItem('barsuffer:plan:v1', JSON.stringify({ v: 1, courses: [{ courseId: '63013', color: 0, picks: { lecture: '18' } }] })),
+  );
+  await page.reload();
+  if (isMobile) await page.getByRole('button', { name: /^Courses/ }).click();
+  await page.getByRole('button', { name: 'Clear all' }).click();
+  await expect(page.locator('.my-course')).toHaveCount(0);
+  await page.getByRole('status').getByRole('button', { name: 'Undo' }).click();
+  await expect(page.locator('.my-course')).toHaveCount(1);
+});
+
+test('two tabs: a change in one tab shows up in the other instead of being overwritten', async ({ context, page, isMobile }) => {
+  const other = await context.newPage();
+  await other.route('**/api.open-meteo.com/**', (route) => route.fulfill({ contentType: 'application/json', body: forecastBody('2000-01-01') }));
+  await other.goto('/');
+  await page.getByRole('searchbox', { name: 'Search courses' }).fill('63013');
+  await page.getByRole('button', { name: '+ Add' }).first().click();
+  if (isMobile) await other.getByRole('button', { name: /^Courses/ }).click();
+  await expect(other.locator('.my-course')).toHaveCount(1);
+  await other.close();
+});
 
 test('language switch: Russian and Hebrew (RTL), remembered after reload', async ({ page }) => {
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');

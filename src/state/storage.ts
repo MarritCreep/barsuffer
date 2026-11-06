@@ -1,6 +1,6 @@
 import { EMPTY_PLAN, type Plan } from '../logic/selection';
 
-const PLAN_KEY = 'barsuffer:plan:v1';
+export const PLAN_KEY = 'barsuffer:plan:v1';
 const THEME_KEY = 'barsuffer:theme';
 
 export type Theme = 'dark' | 'light';

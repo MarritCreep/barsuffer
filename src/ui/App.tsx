@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { catalog, courseMap } from '../data/catalog';
 import type { Course, Semester } from '../data/types';
 import { blockMeetings, isBlockId, nextBlockId } from '../logic/blocks';
@@ -15,7 +15,7 @@ import { backupFileName, makeBackup, readBackup } from '../state/backup';
 import { initHistory, withHistory } from '../state/history';
 import { loadSettings, saveSettings, type Settings } from '../state/settings';
 import { applyAppearance, loadAppearance, saveAppearance, type Appearance } from '../state/appearance';
-import { loadPlan, savePlan } from '../state/storage';
+import { PLAN_KEY, loadPlan, savePlan } from '../state/storage';
 import { useI18n } from '../i18n/I18n';
 import type { MessageKey } from '../i18n/messages';
 import { demoPlan } from '../logic/demo';
@@ -110,8 +110,27 @@ export function App() {
   const [wake, setWake] = useState<WakePrefs>(loadWake);
   const [slotFilter, setSlotFilter] = useState<CourseFilter>(EMPTY_FILTER);
 
-  useEffect(() => savePlan(plan), [plan]);
+  // Пример расписания — только посмотреть: пока он открыт, ничего не сохраняется, а своё расписание
+  // возвращается кнопкой (или просто перезагрузкой страницы — в хранилище оно не тронуто).
+  const [sample, setSample] = useState<{ previous: Plan } | null>(null);
+  useEffect(() => {
+    if (!sample) savePlan(plan);
+  }, [plan, sample]);
   useEffect(() => saveSettings(settings), [settings]);
+
+  // Другая вкладка изменила расписание — подхватить, иначе эта вкладка при следующей правке молча затёрла бы его.
+  const sampleRef = useRef(sample);
+  sampleRef.current = sample;
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== PLAN_KEY) return;
+      const fresh = loadPlan();
+      if (sampleRef.current) setSample({ previous: fresh });
+      else dispatch({ kind: 'replacePlan', plan: fresh });
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
   useEffect(() => write(KEYS.wake, wake), [wake]);
 
   // Убрать #friend=… из адреса, чтобы перезагрузка и «поделиться» не тащили чужое расписание.
@@ -125,10 +144,21 @@ export function App() {
   }, []);
   const tourTab = useCallback((next: TourTab) => setTab(next), []);
   const loadDemo = useCallback(() => {
-    const previous = history.present;
+    // Повторный запуск примера не должен «запомнить» пример как своё расписание.
+    setSample((s) => s ?? { previous: history.present });
     dispatch({ kind: 'replacePlan', plan: demoPlan(courseMap) });
-    setNotice({ text: t('tour.demoLoaded'), kind: 'ok', undo: () => dispatch({ kind: 'replacePlan', plan: previous }) });
-  }, [history.present, t]);
+  }, [history.present]);
+  const exitSample = () => {
+    if (!sample) return;
+    dispatch({ kind: 'replacePlan', plan: sample.previous });
+    setSample(null);
+  };
+  const keepSample = () => {
+    if (!sample) return;
+    const previous = sample.previous;
+    setSample(null);
+    setNotice({ text: t('sample.kept'), kind: 'ok', undo: () => dispatch({ kind: 'replacePlan', plan: previous }) });
+  };
   const openTool = (next: Tool) => {
     setActiveId(null);
     setSlot(null);
@@ -242,6 +272,20 @@ export function App() {
         onRedo={() => dispatch({ kind: 'redo' })}
       />
 
+      {sample && (
+        <div className="sample-banner" role="status">
+          <span>{t('sample.banner')}</span>
+          <span className="sample-actions">
+            <button type="button" className="btn btn-small" onClick={exitSample}>
+              {t('sample.exit')}
+            </button>
+            <button type="button" className="btn btn-quiet btn-small" onClick={keepSample}>
+              {t('sample.keep')}
+            </button>
+          </span>
+        </div>
+      )}
+
       <main className="layout">
         <div className="left-col">
           <section className="pane pane-courses" aria-label={t('app.coursesPane')}>
@@ -252,7 +296,11 @@ export function App() {
               onAdd={addCourse}
               onRemove={(courseId) => dispatch({ kind: 'remove', courseId })}
               onPick={startPicking}
-              onClear={() => dispatch({ kind: 'clear' })}
+              onClear={() => {
+                const previous = plan;
+                dispatch({ kind: 'clear' });
+                setNotice({ text: t('notice.cleared'), kind: 'ok', undo: () => dispatch({ kind: 'replacePlan', plan: previous }) });
+              }}
               onSetHidden={(courseId, hidden) => dispatch({ kind: 'setHidden', courseId, hidden })}
               onImportInbar={() => setImportOpen(true)}
               onSaveFile={() => {
