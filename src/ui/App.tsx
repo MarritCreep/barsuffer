@@ -14,7 +14,8 @@ import { dayOf, semesterOn } from '../logic/today';
 import { backupFileName, makeBackup, readBackup } from '../state/backup';
 import { initHistory, withHistory } from '../state/history';
 import { loadSettings, saveSettings, type Settings } from '../state/settings';
-import { loadPlan, loadTheme, savePlan, saveTheme, type Theme } from '../state/storage';
+import { applyAppearance, loadAppearance, saveAppearance, type Appearance } from '../state/appearance';
+import { loadPlan, savePlan } from '../state/storage';
 import { AutoPickDialog } from './AutoPickDialog';
 import { CampusMap } from './CampusMap';
 import { CoursePanel } from './CoursePanel';
@@ -72,7 +73,7 @@ export function App() {
     return () => window.clearTimeout(id);
   }, [notice]);
   const forecast = useForecast();
-  const [theme, setTheme] = useState<Theme>(loadTheme);
+  const [appearance, setAppearance] = useState<Appearance>(loadAppearance);
   const [semester, setSemester] = useState<Semester>(() => semesterOn(new Date()) ?? 'A');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tab, setTab] = useState<MobileTab>('courses');
@@ -81,10 +82,8 @@ export function App() {
   useEffect(() => savePlan(plan), [plan]);
   useEffect(() => saveSettings(settings), [settings]);
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    saveTheme(theme);
-  }, [theme]);
+  // Оформление применяется сразу (в том числе предпросмотр), сохраняется только по «Apply».
+  useEffect(() => applyAppearance(appearance), [appearance]);
 
   // Выбранный курс мог быть удалён.
   const activeCourse = activeId && plan.courses.some((c) => c.courseId === activeId)
@@ -166,10 +165,22 @@ export function App() {
 
   return (
     <div className="app" data-tab={tab}>
+      {appearance.fog && (
+        <div className="fog" aria-hidden="true">
+          <span className="fog-blob b1" />
+          <span className="fog-blob b2" />
+          <span className="fog-blob b3" />
+          <span className="fog-blob b4" />
+        </div>
+      )}
       <Header
         metadata={catalog.metadata}
-        theme={theme}
-        onToggleTheme={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+        appearance={appearance}
+        onPreviewAppearance={setAppearance}
+        onApplyAppearance={(a) => {
+          setAppearance(a);
+          saveAppearance(a);
+        }}
         canUndo={history.past.length > 0}
         canRedo={history.future.length > 0}
         onUndo={() => dispatch({ kind: 'undo' })}

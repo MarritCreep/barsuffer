@@ -237,7 +237,7 @@ test('campus map: route for a day, Run! warning, empty day', async ({ page }) =>
   await page.clock.setFixedTime(new Date('2026-11-11T10:00:00')); // среда
   await seed(page, [
     ['63256', { lecture: '18' }], // ср 14–16, здание 105
-    ['99003', { lecture: '01' }], // ср 16–18, здание 901 (демо)
+    ['99003', { lecture: '01' }], // ср 16–18, здание 902 (демо)
   ]);
   await page.getByRole('button', { name: 'Open campus map' }).click();
   const map = page.getByRole('dialog', { name: 'Campus map' });
@@ -247,7 +247,7 @@ test('campus map: route for a day, Run! warning, empty day', async ({ page }) =>
 
   // Весь день: ворота → пара 1 → пара 2 → ворота.
   await map.getByRole('combobox', { name: 'Campus gate' }).selectOption('gate-40');
-  await expect(map.locator('.route-summary')).toContainText('Gate 40 → 105 → 901 → Gate 40');
+  await expect(map.locator('.route-summary')).toContainText('Gate 40 → 105 → 902 → Gate 40');
   await expect(map.locator('.map-leg line')).toHaveCount(3);
   await expect(map.getByText('Leave via Gate 40')).toBeVisible();
   await shot(page, '15-map');
@@ -358,13 +358,13 @@ test('today: semester progress and a rain warning', async ({ page, isMobile }) =
   );
   await seed(page, [
     ['63256', { lecture: '18' }], // ср 14–16, 105
-    ['99003', { lecture: '01' }], // ср 16–18, 901
+    ['99003', { lecture: '01' }], // ср 16–18, 902
   ]);
   if (isMobile) await page.getByRole('button', { name: 'Today' }).click();
   const today = page.locator('.today');
   await expect(today.locator('.progress')).toContainText('week 5 of 15');
   await expect(today.locator('.rain')).toContainText('Take an umbrella');
-  await expect(today.locator('.rain')).toContainText('105 → 901');
+  await expect(today.locator('.rain')).toContainText('105 → 902');
   await expect(today).toContainText('Walking today');
   await shot(page, '19-today-rain');
 });
@@ -444,6 +444,73 @@ test('save the schedule to a file and load it back', async ({ page }) => {
   await expect(page.locator('.my-course')).toHaveCount(0);
 });
 
+test('the burning SUFFER button opens the GIF and closes it', async ({ page }) => {
+  await page.getByRole('button', { name: 'SUFFER', exact: true }).click();
+  const gif = page.getByRole('dialog', { name: 'Welcome home' });
+  const img = gif.getByRole('img');
+  await expect(img).toBeVisible();
+  await expect.poll(() => img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
+  await shot(page, '21-suffer');
+  await gif.getByRole('button', { name: 'Close' }).click();
+  await expect(gif).toHaveCount(0);
+
+  // Esc тоже закрывает.
+  await page.getByRole('button', { name: 'SUFFER', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(gif).toHaveCount(0);
+});
+
+test('custom colour and shimmering fog: preview, cancel, apply, remembered', async ({ page }) => {
+  const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
+  const before = await accent();
+
+  // Предпросмотр сразу, «Cancel» возвращает как было.
+  await page.getByRole('button', { name: 'Theme and colour' }).click();
+  await page.getByRole('button', { name: 'Green' }).click();
+  expect(await accent()).toBe('#3fbf5a');
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  expect(await accent()).toBe(before);
+
+  // Свой RGB и туман — применить.
+  await page.getByRole('button', { name: 'Theme and colour' }).click();
+  await page.getByLabel('Pick a colour').fill('#ff3366');
+  await page.getByRole('slider', { name: 'Blue channel' }).fill('0');
+  await page.getByRole('checkbox', { name: /Shimmering colour/ }).check();
+  await page.getByRole('button', { name: 'Apply' }).click();
+  expect(await accent()).toBe('#ff3300');
+  await expect(page.locator('.fog')).toHaveCount(1);
+  await shot(page, '22-fog');
+
+  // Запоминается после перезагрузки.
+  await page.reload();
+  expect(await accent()).toBe('#ff3300');
+  await expect(page.locator('.fog')).toHaveCount(1);
+});
+
+test('campus map zooms with the wheel, drags with inertia, resets', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'wheel is a desktop gesture; pinch uses the same zoom code');
+  await page.getByRole('button', { name: 'Open campus map' }).click();
+  const map = page.getByRole('dialog', { name: 'Campus map' });
+  const svg = map.locator('svg.map-svg');
+  const width = async () => Number((await svg.getAttribute('viewBox'))!.split(' ')[2]);
+  const start = await width();
+
+  const box = (await svg.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.wheel(0, -400);
+  await expect.poll(width).toBeLessThan(start * 0.6); // плавно приблизилось
+
+  // Перетаскивание сдвигает карту.
+  const x0 = Number((await svg.getAttribute('viewBox'))!.split(' ')[0]);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 80, box.y + box.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => Number((await svg.getAttribute('viewBox'))!.split(' ')[0])).toBeLessThan(x0 - 10);
+
+  await map.getByRole('button', { name: 'Reset zoom' }).click();
+  await expect.poll(width).toBeGreaterThan(start * 0.98);
+});
+
 test('real sample schedule renders with conflicts, theme toggles', async ({ page, isMobile }) => {
   await page.evaluate(() => {
     const picks: [string, Record<string, string>][] = [
@@ -472,7 +539,9 @@ test('real sample schedule renders with conflicts, theme toggles', async ({ page
   await page.locator('.misery summary').click();
   await shot(page, '04-full-dark');
 
-  await page.getByRole('button', { name: /Switch to light theme/ }).click();
+  await page.getByRole('button', { name: 'Theme and colour' }).click();
+  await page.getByRole('tab', { name: 'Light' }).click();
+  await page.getByRole('button', { name: 'Apply' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await shot(page, '05-full-light');
 

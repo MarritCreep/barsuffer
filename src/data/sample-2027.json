@@ -384,7 +384,7 @@
           "type": "lecture",
           "lecturer": "Demo lecturer",
           "isDemo": true,
-          "schedule": [{ "day": 4, "startTime": "16:00", "endTime": "18:00", "building": "901", "room": "1" }]
+          "schedule": [{ "day": 4, "startTime": "16:00", "endTime": "18:00", "building": "902", "room": "1" }]
         }
       ]
     },

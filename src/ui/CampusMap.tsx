@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { OSM_ATTRIBUTION } from '../data/campusGeo';
 import { DAY_LABEL, DAYS, type Day, type Semester } from '../data/types';
 import {
   BREAK_BUFFER_MIN,
@@ -13,6 +14,7 @@ import { CAFES } from '../logic/coffee';
 import type { PlacedMeeting } from '../logic/schedule';
 import { dayWalkMeters, formatDistance, stepsFor } from '../logic/walking';
 import { place, sessionLabel, timeRange } from './format';
+import { useZoomPan } from './useZoomPan';
 
 interface Props {
   /** Занятия семестра (без блокировок). */
@@ -206,10 +208,13 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
     return { from, to, walk, run: Boolean(leg?.run) };
   });
 
-  const view =
+  const baseView =
     journey && !wholeCampus && path.length > 0
       ? fitView([...path.map((p) => p.xy)])
       : CAMPUS;
+  // Колесо, перетаскивание с инерцией и щипок двумя пальцами.
+  const svgRef = useRef<SVGSVGElement>(null);
+  const { view, zoomAt, reset, zoom } = useZoomPan(svgRef, baseView, open);
 
   if (hidden && !open) return null;
 
@@ -383,7 +388,9 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
       </div>
 
       <div className="map-body">
+        <div className="map-canvas">
         <svg
+          ref={svgRef}
           className="map-svg"
           viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
           preserveAspectRatio="xMidYMid meet"
@@ -468,6 +475,25 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
             );
           })}
         </svg>
+          <div className="map-zoom" role="group" aria-label="Map zoom">
+            <button type="button" className="icon-btn" onClick={() => zoomAt(1.6)} aria-label="Zoom in">
+              +
+            </button>
+            <button type="button" className="icon-btn" onClick={() => zoomAt(1 / 1.6)} aria-label="Zoom out">
+              −
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={reset}
+              disabled={Math.abs(zoom - 1) < 0.05}
+              aria-label="Reset zoom"
+              title="Reset zoom"
+            >
+              ⟲
+            </button>
+          </div>
+        </div>
 
         <div className="map-list">
           {stops.length === 0 ? (
@@ -566,8 +592,12 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
           )}
           {offMap.length > 0 && <p className="muted small">Not on the map: {offMap.join(', ')}</p>}
           <p className="muted small">
-            Schematic, not to scale. Walk times are rough guesses (we assume {BREAK_BUFFER_MIN} min between
-            back-to-back classes). Rooms may change — check Inbar.
+            Schematic map. Distances use real building positions where known (
+            <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+              {OSM_ATTRIBUTION}
+            </a>
+            ); walk times are estimates — we assume {BREAK_BUFFER_MIN} min between back-to-back classes. Rooms may
+            change — check Inbar.
           </p>
         </div>
       </div>

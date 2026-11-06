@@ -205,6 +205,330 @@ h3 {
   gap: 8px;
 }
 
+/* ---------- Выбор темы ---------- */
+.theme-picker {
+  position: relative;
+}
+
+.theme-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border), 0 0 10px var(--accent);
+}
+
+.theme-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+
+.theme-panel {
+  position: fixed;
+  z-index: 41;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  width: min(320px, calc(100vw - 32px));
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 40%);
+}
+
+.theme-title {
+  font-size: 15px;
+}
+
+.theme-panel .sem-tabs {
+  margin: 0;
+  justify-self: start;
+}
+
+.theme-color-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-color-row input[type='color'] {
+  width: 44px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  cursor: pointer;
+}
+
+.theme-hex {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.theme-sliders {
+  display: grid;
+  gap: 4px;
+}
+
+.theme-sliders .weight-row {
+  grid-template-columns: 16px minmax(0, 1fr) 32px;
+}
+
+.theme-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.theme-preset {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--border);
+  padding: 0;
+}
+
+.theme-preset.on {
+  box-shadow: 0 0 0 2px var(--text);
+}
+
+.theme-fog {
+  align-items: flex-start;
+  line-height: 1.3;
+}
+
+/* ---------- Переливающийся туман ---------- */
+.fog {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.layout,
+.footer {
+  position: relative;
+  z-index: 1;
+}
+
+.fog-blob {
+  position: absolute;
+  width: 70vmax;
+  height: 70vmax;
+  border-radius: 50%;
+  filter: blur(60px);
+  opacity: 0.32;
+  will-change: transform, opacity;
+}
+
+:root[data-theme='light'] .fog-blob {
+  opacity: 0.24;
+}
+
+.fog-blob.b1 {
+  left: -20vmax;
+  top: -25vmax;
+  background: radial-gradient(circle, var(--fog-1) 0%, transparent 62%);
+  animation: fog-drift-1 26s ease-in-out infinite alternate;
+}
+
+.fog-blob.b2 {
+  right: -25vmax;
+  top: 10vh;
+  background: radial-gradient(circle, var(--fog-2) 0%, transparent 62%);
+  animation: fog-drift-2 33s ease-in-out infinite alternate;
+}
+
+.fog-blob.b3 {
+  left: 10vw;
+  bottom: -35vmax;
+  background: radial-gradient(circle, var(--fog-3) 0%, transparent 62%);
+  animation: fog-drift-3 29s ease-in-out infinite alternate;
+}
+
+.fog-blob.b4 {
+  right: 5vw;
+  bottom: -20vmax;
+  width: 50vmax;
+  height: 50vmax;
+  background: radial-gradient(circle, var(--fog-1) 0%, transparent 62%);
+  animation: fog-drift-2 41s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes fog-drift-1 {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.22; }
+  50% { transform: translate(18vw, 12vh) scale(1.25); opacity: 0.38; }
+  100% { transform: translate(6vw, 30vh) scale(0.95); opacity: 0.26; }
+}
+
+@keyframes fog-drift-2 {
+  0% { transform: translate(0, 0) scale(1.1); opacity: 0.3; }
+  50% { transform: translate(-22vw, 18vh) scale(0.9); opacity: 0.2; }
+  100% { transform: translate(-10vw, -10vh) scale(1.3); opacity: 0.36; }
+}
+
+@keyframes fog-drift-3 {
+  0% { transform: translate(0, 0) scale(0.9); opacity: 0.25; }
+  50% { transform: translate(14vw, -20vh) scale(1.2); opacity: 0.34; }
+  100% { transform: translate(-12vw, -8vh) scale(1); opacity: 0.22; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fog-blob {
+    animation: none;
+  }
+}
+
+/* ---------- Горящая кнопка SUFFER ---------- */
+.header {
+  align-items: flex-start;
+}
+
+.brand-col {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
+.suffer-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  padding: 8px 26px;
+  border: 1px solid #ff9f1a;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #2a0a02, #120402);
+  color: #fff3d6;
+  font-family: var(--font-ui);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.22em;
+  box-shadow: 0 0 12px rgb(255 120 20 / 55%), inset 0 0 14px rgb(255 90 0 / 35%);
+  animation: suffer-glow 1.6s ease-in-out infinite alternate;
+}
+
+.suffer-text {
+  position: relative;
+  z-index: 2;
+  text-shadow: 0 0 4px #fff, 0 -2px 6px #ffd54a, 0 -6px 12px #ff8c1a, 0 -10px 20px #ff3d00;
+  animation: suffer-flicker 0.18s steps(2) infinite alternate;
+}
+
+/* Языки пламени: подвижные радиальные градиенты снизу */
+.suffer-flames {
+  position: absolute;
+  inset: -40% -10% -10%;
+  z-index: 1;
+  background:
+    radial-gradient(14px 28px at 12% 100%, #ffd54a, transparent 70%),
+    radial-gradient(18px 36px at 30% 100%, #ff8c1a, transparent 70%),
+    radial-gradient(16px 32px at 50% 100%, #ffd54a, transparent 70%),
+    radial-gradient(20px 40px at 70% 100%, #ff5a00, transparent 70%),
+    radial-gradient(14px 30px at 88% 100%, #ff8c1a, transparent 70%);
+  background-size: 100% 100%;
+  filter: blur(3px);
+  opacity: 0.85;
+  animation: suffer-burn 0.9s ease-in-out infinite alternate;
+}
+
+.suffer-btn:hover,
+.suffer-btn:focus-visible {
+  border-color: #ffd54a;
+  box-shadow: 0 0 22px rgb(255 140 30 / 80%), inset 0 0 18px rgb(255 110 0 / 50%);
+}
+
+@keyframes suffer-glow {
+  from {
+    box-shadow: 0 0 10px rgb(255 110 20 / 45%), inset 0 0 12px rgb(255 90 0 / 30%);
+  }
+  to {
+    box-shadow: 0 0 20px rgb(255 150 30 / 75%), inset 0 0 18px rgb(255 120 0 / 45%);
+  }
+}
+
+@keyframes suffer-burn {
+  0% {
+    transform: translateY(6px) scaleY(0.9);
+  }
+  50% {
+    transform: translateY(0) scaleY(1.08) skewX(-3deg);
+  }
+  100% {
+    transform: translateY(3px) scaleY(1.15) skewX(3deg);
+  }
+}
+
+@keyframes suffer-flicker {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.88;
+  }
+}
+
+@media (max-width: 599px) {
+  .suffer-btn {
+    padding: 5px 18px;
+    font-size: 15px;
+  }
+}
+
+/* На телефоне шапка с кнопкой не липнет к верху — экрана и так мало */
+@media (max-width: 899px) {
+  .header {
+    position: static;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .suffer-btn,
+  .suffer-text,
+  .suffer-flames {
+    animation: none;
+  }
+}
+
+.suffer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 80%);
+}
+
+.suffer-modal {
+  position: relative;
+  max-width: min(520px, 100%);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #ff8c1a;
+  box-shadow: 0 0 40px rgb(255 100 0 / 45%);
+}
+
+.suffer-modal img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.suffer-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgb(0 0 0 / 55%);
+  border-color: rgb(255 255 255 / 25%);
+  color: #fff;
+}
+
 .logo {
   font-family: var(--font-hand);
   font-size: 30px;
@@ -347,8 +671,8 @@ h3 {
 
   .left-col {
     position: sticky;
-    top: 68px;
-    max-height: calc(100vh - 80px);
+    top: 118px;
+    max-height: calc(100vh - 130px);
     overflow-y: auto;
     padding-inline-end: 4px;
   }
@@ -1520,10 +1844,37 @@ h3 {
   }
 }
 
+.map-canvas {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .map-svg {
   width: 100%;
   height: 100%;
   background: var(--bg);
+  touch-action: none; /* щипок и перетаскивание — наши, не прокрутка страницы */
+  cursor: grab;
+  user-select: none;
+}
+
+.map-svg:active {
+  cursor: grabbing;
+}
+
+.map-zoom {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.map-zoom .icon-btn {
+  font-size: 18px;
+  font-weight: 700;
+  box-shadow: var(--shadow);
 }
 
 .map-campus {

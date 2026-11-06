@@ -3,7 +3,7 @@ import type { Course } from '../data/types';
 import { courseMap } from '../data/catalog';
 import { autoPick } from './autopick';
 import { blockMeetings, isBlockId } from './blocks';
-import { BREAK_BUFFER_MIN, dayJourney, dayRoute, findSprints, walkMinutes } from './campus';
+import { BREAK_BUFFER_MIN, dayJourney, dayRoute, findSprints, FIT_RMS_METERS, walkMeters, walkMinutes } from './campus';
 import { weeklyCommuteHours } from './load';
 import { computeMisery, MISERY_WEIGHTS } from './misery';
 import { miseryDelta } from './preview';
@@ -178,13 +178,13 @@ describe('campus walking («Беги!»)', () => {
   it('estimates walking minutes between buildings', () => {
     expect(walkMinutes('505', '505')).toBe(0);
     expect(walkMinutes('105', '505')).toBeGreaterThan(5);
-    expect(walkMinutes('105', '901')).toBeGreaterThan(BREAK_BUFFER_MIN);
+    expect(walkMinutes('105', '902')).toBeGreaterThan(BREAK_BUFFER_MIN);
     expect(walkMinutes('105', 'nope')).toBeNull();
     expect(walkMinutes(undefined, '105')).toBeNull();
   });
 
   it('flags back-to-back classes on opposite ends of campus', () => {
-    const sprints = findSprints([m(4, '14:00', '16:00', '105', 'a'), m(4, '16:00', '18:00', '901', 'b')]);
+    const sprints = findSprints([m(4, '14:00', '16:00', '105', 'a'), m(4, '16:00', '18:00', '902', 'b')]);
     expect(sprints).toHaveLength(1);
     expect(sprints[0]).toMatchObject({ available: BREAK_BUFFER_MIN });
   });
@@ -192,6 +192,14 @@ describe('campus walking («Беги!»)', () => {
   it('nearby buildings or a real gap are fine', () => {
     expect(findSprints([m(4, '14:00', '16:00', '503', 'a'), m(4, '16:00', '18:00', '504', 'b')])).toEqual([]);
     expect(findSprints([m(4, '10:00', '12:00', '105', 'a'), m(4, '13:00', '14:00', '901', 'b')])).toEqual([]);
+  });
+
+  it('real coordinates: the schematic map matches OpenStreetMap within a few dozen metres', () => {
+    expect(FIT_RMS_METERS).toBeLessThan(20);
+    // 101 → 901 по прямой ≈ 920 м (OSM), с поправкой на дорожки ≈ 1,2 км.
+    expect(walkMeters('101', '901')).toBeGreaterThan(1100);
+    expect(walkMeters('101', '901')).toBeLessThan(1300);
+    expect(walkMeters('503', '504')).toBeLessThan(120);
   });
 
   it('builds a day route in time order', () => {
@@ -226,7 +234,7 @@ describe('campus walking («Беги!»)', () => {
       v: 1,
       courses: [
         { courseId: '63256', color: 0, picks: { lecture: '18' } }, // ср 14–16, здание 105
-        { courseId: '99003', color: 1, picks: { lecture: '01' } }, // ср 16–18, здание 901 (демо)
+        { courseId: '99003', color: 1, picks: { lecture: '01' } }, // ср 16–18, здание 902 (демо)
       ],
     };
     expect(findSprints(collectMeetings(plan, courseMap, 'A'))).toHaveLength(1);

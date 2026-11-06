@@ -1,10 +1,46 @@
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CatalogMetadata } from '../data/types';
-import type { Theme } from '../state/storage';
+import type { Appearance } from '../state/appearance';
+import { ThemePicker } from './ThemePicker';
+
+/** Гифка лежит в public/ и грузится только при нажатии на кнопку. */
+const SUFFER_GIF = `${import.meta.env.BASE_URL}skeleton-burning.gif`;
+
+/** Шуточное окно «SUFFER»: горящий скелет. Закрывается крестиком, кликом мимо или Esc. */
+function SufferGif({ onClose }: { onClose: () => void }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  // В body: у шапки backdrop-filter, внутри неё position: fixed считается от шапки, а не от экрана.
+  return createPortal(
+    <div className="suffer-backdrop" onClick={onClose}>
+      <div
+        className="suffer-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Welcome home"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button ref={closeRef} type="button" className="icon-btn suffer-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+        <img src={SUFFER_GIF} alt="A skeleton burning in flames, arms raised: “Welcome home!”" />
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 interface Props {
   metadata: CatalogMetadata;
-  theme: Theme;
-  onToggleTheme: () => void;
+  appearance: Appearance;
+  onPreviewAppearance: (a: Appearance) => void;
+  onApplyAppearance: (a: Appearance) => void;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
@@ -14,16 +50,24 @@ interface Props {
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 const MOD = isMac ? '⌘' : 'Ctrl+';
 
-export function Header({ metadata, theme, onToggleTheme, canUndo, canRedo, onUndo, onRedo }: Props) {
-  const next = theme === 'dark' ? 'light' : 'dark';
+export function Header(props: Props) {
+  const { metadata, appearance, onPreviewAppearance, onApplyAppearance, canUndo, canRedo, onUndo, onRedo } = props;
+  const [suffer, setSuffer] = useState(false);
   return (
     <header className="header">
-      <div className="brand">
-        <span className="logo">
-          Bar<span className="logo-accent">Suffer</span>
-        </span>
-        <span className="pill">Unofficial</span>
+      <div className="brand-col">
+        <div className="brand">
+          <span className="logo">
+            Bar<span className="logo-accent">Suffer</span>
+          </span>
+          <span className="pill">Unofficial</span>
+        </div>
+        <button type="button" className="suffer-btn" onClick={() => setSuffer(true)}>
+          <span className="suffer-flames" aria-hidden="true" />
+          <span className="suffer-text">SUFFER</span>
+        </button>
       </div>
+      {suffer && <SufferGif onClose={() => setSuffer(false)} />}
       <div className="header-meta">
         <span className="snapshot" title={metadata.source}>
           <bdi dir="rtl" lang="he">{metadata.yearHebrew}</bdi> · data {metadata.updatedAt}
@@ -55,26 +99,7 @@ export function Header({ metadata, theme, onToggleTheme, canUndo, canRedo, onUnd
             </svg>
           </button>
         </span>
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={onToggleTheme}
-          aria-label={`Switch to ${next} theme`}
-          title={`Switch to ${next} theme`}
-        >
-          {theme === 'dark' ? (
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-              <circle cx="12" cy="12" r="4.5" fill="currentColor" />
-              <g stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-              </g>
-            </svg>
-          ) : (
-            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-              <path fill="currentColor" d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1Z" />
-            </svg>
-          )}
-        </button>
+        <ThemePicker appearance={appearance} onPreview={onPreviewAppearance} onApply={onApplyAppearance} />
       </div>
     </header>
   );

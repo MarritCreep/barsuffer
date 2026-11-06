@@ -1,3 +1,4 @@
+import { OSM_ATTRIBUTION } from '../data/campusGeo';
 import { DAY_LABEL, type Day } from '../data/types';
 import type { CoffeeGap } from '../logic/coffee';
 import { timeRange } from './format';
@@ -63,7 +64,13 @@ export function WeekInsights({ hell, weekMeters, gaps }: Props) {
           </div>
         </div>
       )}
-      <p className="muted small">Walking and cafés are rough estimates from the campus layout.</p>
+      <p className="muted small">
+        Walking is estimated from building positions (
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
+          {OSM_ATTRIBUTION}
+        </a>
+        ) and the campus layout; café spots are approximate.
+      </p>
     </div>
   );
 }

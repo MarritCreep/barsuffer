@@ -1,11 +1,13 @@
+import { BUILDING_LATLON } from '../data/campusGeo';
 import type { Day } from '../data/types';
 import type { PlacedMeeting } from './schedule';
 
 /**
  * «Беги!» — ЭКСПЕРИМЕНТ. Примерное время пешком между зданиями кампуса.
  *
- * Координаты — центры номеров зданий на схеме кампуса (картинка 1224×1112 px),
- * снятые на глаз. Схема стилизованная, поэтому всё приблизительно.
+ * BUILDING_XY — центры номеров зданий на схеме кампуса (картинка 1224×1112 px), снятые на глаз;
+ * по ним рисуется наша схема. Расстояния считаются в метрах: по координатам OpenStreetMap,
+ * где они есть, иначе по схеме, пересчитанной в метры (см. metersOf).
  */
 export const BUILDING_XY: Record<string, [number, number]> = {
   '101': [380, 1097], '102': [483, 1053], '103': [359, 1033], '104': [428, 1027],
@@ -30,15 +32,92 @@ export const BUILDING_XY: Record<string, [number, number]> = {
   '1401': [720, 228], '1501': [692, 10], '1502': [534, 274],
 };
 
-/** Масштаб и скорость — грубые допущения, их стоит проверить ногами. */
+/** Допущения о ходьбе — их стоит проверить ногами. */
 export const WALK = {
-  /** метров на пиксель схемы (весь кампус с юга на север ≈ 1,3 км) */
-  metersPerPx: 1.2,
-  /** дорожки не прямые */
-  routeFactor: 1.35,
+  /** дорожки не прямые: путь длиннее прямой линии */
+  routeFactor: 1.3,
   /** спокойный шаг */
   metersPerMinute: 70,
 };
+
+// ---------- Реальные метры ----------
+// Здания, которые есть в OpenStreetMap, — по настоящим координатам. Остальное (здания без
+// номера в OSM, ворота, кафе) — по схеме, пересчитанной в метры аффинным преобразованием,
+// подобранным методом наименьших квадратов по зданиям, известным и там, и там.
+
+type XY = [number, number];
+const LAT0 = 32.069;
+const LON0 = 34.843;
+const M_PER_DEG_LAT = 110_574;
+const M_PER_DEG_LON = 111_320 * Math.cos((LAT0 * Math.PI) / 180);
+
+/** Широта/долгота → метры (восток, север) от центра кампуса. */
+export function latLonToMeters([lat, lon]: XY): XY {
+  return [(lon - LON0) * M_PER_DEG_LON, (lat - LAT0) * M_PER_DEG_LAT];
+}
+
+function solve3(m: number[][], v: number[]): number[] {
+  const det = (a: number[][]) =>
+    a[0]![0]! * (a[1]![1]! * a[2]![2]! - a[1]![2]! * a[2]![1]!) -
+    a[0]![1]! * (a[1]![0]! * a[2]![2]! - a[1]![2]! * a[2]![0]!) +
+    a[0]![2]! * (a[1]![0]! * a[2]![1]! - a[1]![1]! * a[2]![0]!);
+  const d = det(m);
+  return [0, 1, 2].map((col) => det(m.map((row, r) => row.map((x, c) => (c === col ? v[r]! : x)))) / d);
+}
+
+const ANCHORS = Object.keys(BUILDING_LATLON).filter((id) => BUILDING_XY[id]);
+
+/** Коэффициенты x' = a·px + b·py + c (и так же для y'), подобранные по опорным зданиям. */
+const AFFINE = (() => {
+  const m = [
+    [0, 0, 0],
+    [0, 0, 0],
+    [0, 0, 0],
+  ];
+  const vx = [0, 0, 0];
+  const vy = [0, 0, 0];
+  for (const id of ANCHORS) {
+    const [px, py] = BUILDING_XY[id]!;
+    const [mx, my] = latLonToMeters(BUILDING_LATLON[id]!);
+    const row = [px, py, 1];
+    for (let i = 0; i < 3; i++) {
+      for (let j = 0; j < 3; j++) m[i]![j]! += row[i]! * row[j]!;
+      vx[i]! += row[i]! * mx;
+      vy[i]! += row[i]! * my;
+    }
+  }
+  return { x: solve3(m, vx), y: solve3(m, vy) };
+})();
+
+/** Точка схемы → метры на местности (по подобранному преобразованию). */
+export function metersOfPx([px, py]: XY): XY {
+  const [a, b, c] = AFFINE.x as [number, number, number];
+  const [d, e, f] = AFFINE.y as [number, number, number];
+  return [a * px + b * py + c, d * px + e * py + f];
+}
+
+/** Средняя ошибка схемы после пересчёта (м) — насколько схема похожа на реальность. */
+export const FIT_RMS_METERS = Math.sqrt(
+  ANCHORS.reduce((s, id) => {
+    const [x, y] = metersOfPx(BUILDING_XY[id]!);
+    const [rx, ry] = latLonToMeters(BUILDING_LATLON[id]!);
+    return s + (x - rx) ** 2 + (y - ry) ** 2;
+  }, 0) / ANCHORS.length,
+);
+
+/** Положение здания или ворот в метрах: реальное, если есть в OSM, иначе пересчёт схемы. */
+export function metersOf(id?: string): XY | undefined {
+  if (!id) return undefined;
+  const real = BUILDING_LATLON[id];
+  if (real) return latLonToMeters(real);
+  const px = BUILDING_XY[id] ?? GATES[id];
+  return px ? metersOfPx(px) : undefined;
+}
+
+/** Метры пешком между двумя точками на местности (с поправкой на непрямые дорожки). */
+export function walkBetween(a: XY, b: XY): number {
+  return Math.hypot(a[0] - b[0], a[1] - b[1]) * WALK.routeFactor;
+}
 
 /**
  * Перерыв, который реально есть между «стыкующимися» парами: пара 10:00–12:00
@@ -71,19 +150,14 @@ export function pointOf(id?: string): [number, number] | undefined {
   return BUILDING_XY[id] ?? GATES[id];
 }
 
-/** Примерное расстояние пешком в метрах между точками схемы. */
-export function walkMetersXY(a: [number, number], b: [number, number]): number {
-  return Math.hypot(a[0] - b[0], a[1] - b[1]) * WALK.metersPerPx * WALK.routeFactor;
-}
-
 /** Примерные метры пешком между зданиями или воротами; null — точка неизвестна схеме. */
 export function walkMeters(from?: string, to?: string): number | null {
   if (!from || !to) return null;
   if (from === to) return 0;
-  const a = pointOf(from);
-  const b = pointOf(to);
+  const a = metersOf(from);
+  const b = metersOf(to);
   if (!a || !b) return null;
-  return walkMetersXY(a, b);
+  return walkBetween(a, b);
 }
 
 /** Примерные минуты пешком между зданиями или воротами; null — точка неизвестна схеме. */

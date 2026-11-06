@@ -1,5 +1,5 @@
 import type { Day } from '../data/types';
-import { pointOf, WALK, walkMetersXY } from './campus';
+import { metersOf, metersOfPx, WALK, walkBetween } from './campus';
 import type { PlacedMeeting } from './schedule';
 
 /**
@@ -46,16 +46,17 @@ export function coffeeGaps(meetings: readonly PlacedMeeting[]): CoffeeGap[] {
     const gap = to.start - from.end;
     if (gap < MIN_COFFEE_GAP) continue;
 
-    const a = pointOf(from.building);
-    const b = pointOf(to.building) ?? a;
+    const a = metersOf(from.building);
+    const b = metersOf(to.building) ?? a;
     let best: CoffeeGap['cafe'] = null;
     let there = 0;
     let back = 0;
     if (a && b) {
       let bestTotal = Infinity;
       for (const cafe of CAFES) {
-        const t = minutes(walkMetersXY(a, cafe.xy));
-        const r = minutes(walkMetersXY(cafe.xy, b));
+        const c = metersOfPx(cafe.xy);
+        const t = minutes(walkBetween(a, c));
+        const r = minutes(walkBetween(c, b));
         if (t + r < bestTotal) {
           bestTotal = t + r;
           best = cafe;

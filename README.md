@@ -34,7 +34,8 @@ gaps and workload at a glance, and get a (joking) **suffering index** for your w
 
 **Campus (experimental)**
 - Schematic campus map with your day’s route, gate to gate, and a “Run!” warning when two back-to-back
-  classes are too far apart. Building positions and walking times are rough estimates.
+  classes are too far apart. Distances use real building positions from OpenStreetMap where available
+  (© OpenStreetMap contributors, ODbL); walking times are still estimates.
 
 **Your data stays with you**
 - **Import from Inbar**: export your schedule from Inbar as a PDF and upload it. The PDF is read in your
