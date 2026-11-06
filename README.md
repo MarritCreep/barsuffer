@@ -45,6 +45,21 @@ gaps and workload at a glance, and get a (joking) **suffering index** for your w
   between devices — no account needed.
 - No server, no accounts, no ads, no analytics. Dark and light themes, works on phones.
 
+**Tools**
+- **Calendar export (.ics)** for Google / Apple / Outlook: every class on its real date, holidays from the
+  official BIU 2026–27 calendar left out; optionally your blocked times, exams and the holidays themselves.
+- **Friends**: your schedule travels inside a link (nothing is uploaded). Open a friend’s link to see classes
+  you share, when you’re both free (and both on campus — coffee time), and whose suffering index is worse.
+- **Attendance & reserve duty (miluim)**: mark missed classes or reserve-duty dates and see how many more you
+  can miss under each course’s rule (80% by default, Olamot: at most 2 absences).
+- **Exams**: enter your own exam dates, see study days between them and an exam-season suffering index.
+- **Degree progress**: credits towards a 128-credit BA, Olamot (with reduced tracks and exemptions), English
+  levels and English-taught courses, Hebrew expression. Unofficial — always confirm with your department.
+- **Today** also shows holidays, an alarm (first class − commute − getting ready) and a khamsin warning.
+- A short first-visit tour with a sample schedule.
+
+**Languages**: English (default), Русский and עברית (right-to-left). Course names stay in English.
+
 ## Data
 
 The course data is currently a **hand-collected sample** (`src/data/sample-2027.json`, 2026–27): real

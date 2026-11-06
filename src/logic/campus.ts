@@ -140,8 +140,14 @@ export function isGate(id: string): boolean {
   return id in GATES;
 }
 
+/** Номер ворот: 'gate-40' → '40'. Подпись («Gate 40», «Ворота 40», «שער 40») делает интерфейс. */
+export function gateNumber(id: string): string {
+  return id.replace('gate-', '');
+}
+
+/** Английская подпись ворот (для старого кода и тестов); в интерфейсе — t('map.gate'). */
 export function gateLabel(id: string): string {
-  return `Gate ${id.replace('gate-', '')}`;
+  return `Gate ${gateNumber(id)}`;
 }
 
 /** Координаты здания или ворот на схеме. */

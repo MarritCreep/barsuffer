@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
-import { DAY_LABEL, DAYS, type Course, type Day, type Section, type Semester } from '../data/types';
+import { DAYS, type Course, type Day, type Section, type Semester } from '../data/types';
+import { useI18n } from '../i18n/I18n';
 import {
   assignLanes,
   placeSection,
@@ -12,7 +13,8 @@ import type { Sprint } from '../logic/campus';
 import { miseryDelta } from '../logic/preview';
 import { findSection, isCompatible, type Plan } from '../logic/selection';
 import { formatMinutes } from '../logic/time';
-import { place, sessionLabel, TERM_LABEL, timeRange } from './format';
+import { place } from './format';
+import { group, span } from './weekText';
 
 export const GRID_START = 8 * 60;
 export const GRID_END = 22 * 60;
@@ -63,10 +65,15 @@ interface Block extends PlacedMeeting {
 
 export function WeekGrid(props: Props) {
   const { plan, semester, onSemester, meetings, conflicts, unscheduled, activeCourse } = props;
+  const tr = useI18n();
+  const { t, day } = tr;
   const planned = activeCourse ? plan.courses.find((c) => c.courseId === activeCourse.courseId) : undefined;
   const conflictKeys = new Set(conflicts.flatMap((c) => [c.a.key, c.b.key]));
   const sprintByKey = new Map(
-    props.sprints.map((s) => [s.to.key, `Run! ≈${s.walk} min walk from ${s.from.building}, ${s.available} min to get there`]),
+    props.sprints.map((s) => [
+      s.to.key,
+      t('week.runTitle', { walk: s.walk, from: s.from.building ?? '', available: s.available }),
+    ]),
   );
 
   const blocks: Block[] = meetings.map((m) => ({
@@ -94,7 +101,7 @@ export function WeekGrid(props: Props) {
           key: `ghost-${m.key}`,
           ghost: true,
           delta,
-          needsParent: parent ? sessionLabel(parent.type, parent.sectionNumber) : undefined,
+          needsParent: parent ? group(tr, parent.type, parent.sectionNumber) : undefined,
           conflict: false,
           activeSelected: false,
           dim: false,
@@ -119,7 +126,7 @@ export function WeekGrid(props: Props) {
   return (
     <div className="week">
       <div className="week-toolbar">
-        <div className="sem-tabs" role="tablist" aria-label="Semester">
+        <div className="sem-tabs" role="tablist" aria-label={t('week.semesterTabs')}>
           {(['A', 'B'] as Semester[]).map((s) => (
             <button
               key={s}
@@ -129,7 +136,7 @@ export function WeekGrid(props: Props) {
               className={semester === s ? 'on' : ''}
               onClick={() => onSemester(s)}
             >
-              Semester {s}
+              {tr.term(s, 'long')}
             </button>
           ))}
         </div>
@@ -138,7 +145,7 @@ export function WeekGrid(props: Props) {
             Wrapped
           </button>
           <button type="button" className="btn btn-auto" onClick={props.onAutoPick}>
-            Auto-pick
+            {t('week.autoPick')}
           </button>
         </span>
       </div>
@@ -146,25 +153,25 @@ export function WeekGrid(props: Props) {
       {activeCourse && planned && (
         <div className={`pick-banner c${planned.color}`}>
           <div className="pick-text">
-            <span className="pick-label">Choosing groups</span>
+            <span className="pick-label">{t('week.choosing')}</span>
             <strong>{activeCourse.name}</strong>
             {activeInSemester ? (
-              <span className="muted small">Tap a dashed block to pick it, tap a picked one to drop it.</span>
+              <span className="muted small">{t('week.choosingHint')}</span>
             ) : (
               <span className="muted small">
-                This course runs in {TERM_LABEL[activeCourse.term]}.{' '}
+                {t('week.otherTerm', { term: tr.term(activeCourse.term) })}{' '}
                 <button
                   type="button"
                   className="link-btn"
                   onClick={() => onSemester(activeCourse.term === 'B' ? 'B' : 'A')}
                 >
-                  Show it
+                  {t('week.showIt')}
                 </button>
               </span>
             )}
             {activeUntimed.length > 0 && (
               <span className="untimed-picks">
-                <span className="muted small">No fixed time:</span>
+                <span className="muted small">{t('week.noFixedTime')}</span>
                 {activeUntimed.map((s) => {
                   const on = planned.picks[s.type] === s.sectionNumber;
                   return (
@@ -175,7 +182,7 @@ export function WeekGrid(props: Props) {
                       aria-pressed={on}
                       onClick={() => props.onToggleSection(activeCourse, s.sectionNumber)}
                     >
-                      {sessionLabel(s.type, s.sectionNumber)}
+                      {group(tr, s.type, s.sectionNumber)}
                     </button>
                   );
                 })}
@@ -183,12 +190,12 @@ export function WeekGrid(props: Props) {
             )}
           </div>
           <button type="button" className="btn" onClick={props.onDone}>
-            Done
+            {t('common.done')}
           </button>
         </div>
       )}
 
-      <div className="grid" role="grid" aria-label={`Week, semester ${semester}`}>
+      <div className="grid" role="grid" aria-label={t(semester === 'B' ? 'week.gridLabel.B' : 'week.gridLabel.A')}>
         <div className="grid-head" role="row">
           <span className="corner" />
           {DAYS.map((d) => {
@@ -199,9 +206,13 @@ export function WeekGrid(props: Props) {
                 key={d}
                 className={`day-name ${score !== undefined ? `heat-${heatLevel(score)}` : ''} ${hell ? 'hell' : ''}`}
                 role="columnheader"
-                title={score !== undefined ? `${DAY_LABEL[d]}: ${score} suffering points${hell ? ' — hell day' : ''}` : undefined}
+                title={
+                  score !== undefined
+                    ? t(hell ? 'week.dayTitleHell' : 'week.dayTitle', { day: day(d), n: score })
+                    : undefined
+                }
               >
-                <span>{DAY_LABEL[d]}</span>
+                <span>{day(d)}</span>
                 {score !== undefined && (
                   <span className="day-score">
                     {hell && <span aria-hidden="true">🔥</span>}
@@ -231,7 +242,7 @@ export function WeekGrid(props: Props) {
                     className={`cell ${on ? 'on' : ''}`}
                     style={{ top: `calc(var(--row-h) * ${i})` }}
                     onClick={() => props.onSlot(d, h)}
-                    aria-label={`What fits on ${DAY_LABEL[d]} ${timeRange(h, h + 60)}`}
+                    aria-label={t('week.whatFits', { day: day(d), time: span(tr, h, h + 60) })}
                     aria-pressed={on}
                   />
                 );
@@ -245,7 +256,7 @@ export function WeekGrid(props: Props) {
                   const style: CSSProperties = {
                     top: `calc(var(--row-h) * ${(start - GRID_START) / 60})`,
                     height: `calc(var(--row-h) * ${(end - start) / 60} - 2px)`,
-                    left: `calc(${(lane / lanes) * 100}% + 1px)`,
+                    insetInlineStart: `calc(${(lane / lanes) * 100}% + 1px)`,
                     width: `calc(${100 / lanes}% - 2px)`,
                   };
                   const cls = [
@@ -264,21 +275,22 @@ export function WeekGrid(props: Props) {
                   const where = place(b.building, b.room);
                   const deltaText =
                     b.delta === undefined ? '' : b.delta === 0 ? '±0' : b.delta > 0 ? `+${b.delta}` : `−${-b.delta}`;
+                  const time = span(tr, b.start, b.end);
                   const label = b.isBlock
-                    ? [`Blocked: ${b.courseName}`, DAY_LABEL[b.day], timeRange(b.start, b.end), b.conflict && 'conflict']
+                    ? [t('week.blocked', { name: b.courseName }), day(b.day), time, b.conflict && t('week.conflict')]
                         .filter(Boolean)
                         .join(', ')
                     : [
-                        b.ghost ? 'Option:' : '',
+                        b.ghost ? t('week.option') : '',
                         b.courseName,
-                        sessionLabel(b.type, b.sectionNumber),
-                        DAY_LABEL[b.day],
-                        timeRange(b.start, b.end),
+                        group(tr, b.type, b.sectionNumber),
+                        day(b.day),
+                        time,
                         b.lecturer,
-                        where && `room ${where}`,
-                        b.needsParent && `switches to ${b.needsParent}`,
-                        deltaText && `suffering index ${deltaText}`,
-                        b.conflict && 'conflict',
+                        where && t('week.room', { where }),
+                        b.needsParent && t('week.switchesTo', { group: b.needsParent }),
+                        deltaText && t('week.delta', { delta: deltaText }),
+                        b.conflict && t('week.conflict'),
                         b.sprint,
                       ]
                         .filter(Boolean)
@@ -298,11 +310,13 @@ export function WeekGrid(props: Props) {
                     >
                       <span className="ev-name">{b.courseName}</span>
                       {b.isBlock ? (
-                        <span className="ev-line">Busy · {timeRange(b.start, b.end)}</span>
+                        <span className="ev-line">
+                          {t('week.busy')} · {time}
+                        </span>
                       ) : (
                       <span className="ev-line">
-                        {sessionLabel(b.type, b.sectionNumber)}
-                        {b.isDemo && <span className="demo-tag">DEMO</span>}
+                        {group(tr, b.type, b.sectionNumber)}
+                        {b.isDemo && <span className="demo-tag">{t('common.demo')}</span>}
                       </span>
                       )}
                       {deltaText && (
@@ -315,13 +329,13 @@ export function WeekGrid(props: Props) {
                       )}
                       {b.sprint && (
                         <span className="ev-run" aria-hidden="true">
-                          Run!
+                          {t('week.run')}
                         </span>
                       )}
-                      {!b.isBlock && <span className="ev-line ev-time">{timeRange(b.start, b.end)}</span>}
+                      {!b.isBlock && <span className="ev-line ev-time">{time}</span>}
                       {where && <span className="ev-line">{where}</span>}
                       {b.lecturer && <span className="ev-line ev-lecturer">{b.lecturer}</span>}
-                      {b.needsParent && <span className="ev-line ev-note">→ {b.needsParent}</span>}
+                      {b.needsParent && <span className="ev-line ev-note">{tr.dir === 'rtl' ? '←' : '→'} {b.needsParent}</span>}
                       {b.conflict && (
                         <span className="ev-flag" aria-hidden="true">
                           !
@@ -333,8 +347,12 @@ export function WeekGrid(props: Props) {
                         type="button"
                         className="ev-remove"
                         onClick={() => props.onRemove(b.courseId)}
-                        aria-label={b.isBlock ? `Remove block ${b.courseName}` : `Remove ${b.courseName} from schedule`}
-                        title={b.isBlock ? 'Remove block (Ctrl+Z to undo)' : 'Remove course (Ctrl+Z to undo)'}
+                        aria-label={
+                          b.isBlock
+                            ? t('week.removeBlock', { name: b.courseName })
+                            : t('week.removeCourse', { name: b.courseName })
+                        }
+                        title={t(b.isBlock ? 'week.removeBlockTitle' : 'week.removeCourseTitle')}
                       >
                         ×
                       </button>
@@ -349,12 +367,12 @@ export function WeekGrid(props: Props) {
 
       {unscheduled.length > 0 && (
         <div className="unscheduled">
-          <h3>Not on the grid (no fixed time)</h3>
+          <h3>{t('week.unscheduled')}</h3>
           <ul>
             {unscheduled.map(({ course, section, color }) => (
               <li key={`${course.courseId}-${section.sectionNumber}`} className={`c${color}`}>
                 <span className="dot" />
-                {course.name} · {sessionLabel(section.type, section.sectionNumber)}
+                {course.name} · {group(tr, section.type, section.sectionNumber)}
               </li>
             ))}
           </ul>

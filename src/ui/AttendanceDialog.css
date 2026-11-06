@@ -1,0 +1,331 @@
+/* ---------- Посещаемость и милуим ---------- */
+.att-modal {
+  max-width: 720px;
+}
+
+.att-tabs {
+  justify-self: start;
+  margin-block-end: 0;
+}
+
+.att-section {
+  display: grid;
+  gap: 8px;
+}
+
+.att-h {
+  margin: 4px 0 0;
+  font-size: 15px;
+}
+
+/* Милуим */
+.att-miluim {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.att-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 10px;
+}
+
+.att-field {
+  display: grid;
+  gap: 2px;
+  min-inline-size: 0;
+}
+
+.att-field input,
+.att-field select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 8px;
+  min-block-size: 34px;
+  color-scheme: inherit;
+}
+
+:root[data-theme='dark'] .att-field input,
+:root[data-theme='dark'] .att-field select {
+  color-scheme: dark;
+}
+
+.att-form .btn {
+  min-block-size: 34px;
+}
+
+.att-periods {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.att-period {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--warn);
+  background: var(--surface);
+}
+
+.att-period-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.att-impact {
+  font-weight: 600;
+}
+
+.att-impact-list {
+  margin: 0;
+  padding-inline-start: 18px;
+  color: var(--muted);
+}
+
+.att-rights {
+  margin: 0;
+  padding-inline-start: 10px;
+  border-inline-start: 3px solid var(--accent);
+  color: var(--text);
+}
+
+/* Курсы и группы */
+.att-course {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--cc);
+  background: var(--surface-2);
+}
+
+.att-course-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.att-course-name {
+  flex: 1 1 200px;
+  min-inline-size: 0;
+  align-self: center;
+}
+
+.att-rule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.att-pct input {
+  inline-size: 80px;
+}
+
+.att-group {
+  --st: var(--c2);
+  display: grid;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.att-tight {
+  --st: var(--warn);
+}
+
+.att-over {
+  --st: var(--danger);
+  border-color: var(--danger);
+}
+
+.att-free {
+  --st: var(--muted);
+}
+
+.att-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.att-group-name {
+  font-weight: 600;
+}
+
+.att-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--st);
+  color: var(--st);
+  white-space: nowrap;
+}
+
+.att-status {
+  font-weight: 600;
+  color: var(--st);
+}
+
+.att-bar {
+  display: flex;
+  block-size: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.att-bar > span {
+  display: block;
+  block-size: 100%;
+}
+
+.att-bar-attended {
+  background: var(--cc, var(--accent));
+}
+
+.att-bar-missed {
+  background: var(--danger);
+}
+
+.att-bar-ahead {
+  background: transparent;
+}
+
+.att-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.att-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.att-dot {
+  display: inline-block;
+  inline-size: 9px;
+  block-size: 9px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+}
+
+/* Даты */
+.att-dates summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.att-dates ul {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.att-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.att-date:nth-child(odd) {
+  background: var(--surface-2);
+}
+
+.att-date.future .att-when > span:first-child {
+  color: var(--muted);
+}
+
+.att-date.today {
+  outline: 1px solid var(--accent);
+}
+
+.att-date.missed .att-when > span:first-child {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.att-date.cancelled {
+  opacity: 0.55;
+}
+
+.att-date.cancelled .att-when > span:first-child {
+  text-decoration: line-through;
+}
+
+.att-when {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.att-date-end {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 8px;
+  margin-inline-start: auto;
+}
+
+.att-note {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.att-chip-miluim {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.att-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.att-check input {
+  inline-size: 18px;
+  block-size: 18px;
+  accent-color: var(--danger);
+  margin: 0;
+}
+
+.att-check:has(input:disabled) {
+  cursor: default;
+  color: var(--muted);
+}

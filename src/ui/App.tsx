@@ -16,7 +16,19 @@ import { initHistory, withHistory } from '../state/history';
 import { loadSettings, saveSettings, type Settings } from '../state/settings';
 import { applyAppearance, loadAppearance, saveAppearance, type Appearance } from '../state/appearance';
 import { loadPlan, savePlan } from '../state/storage';
+import { useI18n } from '../i18n/I18n';
+import type { MessageKey } from '../i18n/messages';
+import { demoPlan } from '../logic/demo';
+import { payloadFromHash } from '../logic/share';
+import { KEYS, loadWake, markTourSeen, tourSeen, write, type WakePrefs } from '../state/tools';
+import { AttendanceDialog } from './AttendanceDialog';
 import { AutoPickDialog } from './AutoPickDialog';
+import { CalendarDialog } from './CalendarDialog';
+import { DegreeDialog } from './DegreeDialog';
+import { ExamsDialog } from './ExamsDialog';
+import { FriendDialog } from './FriendDialog';
+import { ToolsBar, type Tool } from './ToolsBar';
+import { Tour, type TourTab } from './Tour';
 import { CampusMap } from './CampusMap';
 import { CoursePanel } from './CoursePanel';
 import { Header } from './Header';
@@ -32,7 +44,16 @@ import { WeekGrid } from './WeekGrid';
 import { WeekInsights } from './WeekInsights';
 import { Wrapped } from './Wrapped';
 
-type MobileTab = 'today' | 'courses' | 'week';
+type MobileTab = 'today' | 'courses' | 'week' | 'more';
+
+/** Ссылка друга (#friend=…) читается один раз при открытии страницы. */
+function initialFriendPayload(): string | null {
+  try {
+    return payloadFromHash(window.location.hash);
+  } catch {
+    return null;
+  }
+}
 
 const planHistoryReducer = withHistory(planReducer);
 
@@ -55,6 +76,7 @@ function useNow(): Date {
 }
 
 export function App() {
+  const { t } = useI18n();
   const [history, dispatch] = useReducer(planHistoryReducer, undefined, () => initHistory(loadPlan()));
   const plan = history.present;
   const now = useNow();
@@ -78,9 +100,39 @@ export function App() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [tab, setTab] = useState<MobileTab>('courses');
   const [slot, setSlot] = useState<TimeSpan | null>(null);
+  const [friendPayload] = useState(initialFriendPayload);
+  const [tool, setTool] = useState<Exclude<Tool, 'tour'> | null>(() => (friendPayload ? 'friend' : null));
+  // Знакомство — при первом визите (в автотестах браузер помечен navigator.webdriver — там не показываем).
+  const [tour, setTour] = useState<'welcome' | 'steps' | null>(() =>
+    friendPayload || tourSeen() || navigator.webdriver ? null : 'welcome',
+  );
+  const [wake, setWake] = useState<WakePrefs>(loadWake);
 
   useEffect(() => savePlan(plan), [plan]);
   useEffect(() => saveSettings(settings), [settings]);
+  useEffect(() => write(KEYS.wake, wake), [wake]);
+
+  // Убрать #friend=… из адреса, чтобы перезагрузка и «поделиться» не тащили чужое расписание.
+  useEffect(() => {
+    if (friendPayload) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  }, [friendPayload]);
+
+  const closeTour = useCallback(() => {
+    markTourSeen();
+    setTour(null);
+  }, []);
+  const tourTab = useCallback((next: TourTab) => setTab(next), []);
+  const loadDemo = useCallback(() => {
+    const previous = history.present;
+    dispatch({ kind: 'replacePlan', plan: demoPlan(courseMap) });
+    setNotice({ text: t('tour.demoLoaded'), kind: 'ok', undo: () => dispatch({ kind: 'replacePlan', plan: previous }) });
+  }, [history.present, t]);
+  const openTool = (next: Tool) => {
+    setActiveId(null);
+    setSlot(null);
+    if (next === 'tour') setTour('welcome');
+    else setTool(next);
+  };
 
   // Оформление применяется сразу (в том числе предпросмотр), сохраняется только по «Apply».
   useEffect(() => applyAppearance(appearance), [appearance]);
@@ -144,6 +196,7 @@ export function App() {
         setWrappedOpen(false);
         setImportOpen(false);
         setPendingBackup(null);
+        setTool(null);
         return;
       }
       if (!(e.ctrlKey || e.metaKey) || e.altKey || isTyping(e.target)) return;
@@ -189,7 +242,7 @@ export function App() {
 
       <main className="layout">
         <div className="left-col">
-          <section className="pane pane-courses" aria-label="Courses">
+          <section className="pane pane-courses" aria-label={t('app.coursesPane')}>
             <CoursePanel
               catalog={catalog}
               plan={plan}
@@ -208,13 +261,13 @@ export function App() {
                 a.download = backupFileName();
                 a.click();
                 setTimeout(() => URL.revokeObjectURL(url), 1000);
-                setNotice({ text: 'Saved. Open this file later to get your schedule back.', kind: 'ok' });
+                setNotice({ text: t('notice.saved'), kind: 'ok' });
               }}
               onOpenFile={(file) => {
                 void file.text().then((text) => {
                   const result = readBackup(text, courseMap);
                   if (!result.ok) {
-                    setNotice({ text: result.error, kind: 'error' });
+                    setNotice({ text: t(`backup.error.${result.code}` as MessageKey), kind: 'error' });
                     return;
                   }
                   // Сначала показать содержимое; применяется только по «Apply changes».
@@ -226,11 +279,22 @@ export function App() {
         </div>
 
         <div className="right-col">
-        {/* На десктопе «Сегодня» над индексом, чтобы всегда было видно; на телефоне — своя вкладка. */}
-        <section className="pane pane-today" aria-label="Today">
-          <TodayPanel now={now} meetingsFor={busyFor} forecast={forecast} gate={settings.gate} />
+        <section className="pane pane-more" aria-label={t('tools.title')}>
+          <ToolsBar onOpen={openTool} />
         </section>
-        <section className="pane pane-week" aria-label="Week">
+        {/* На десктопе «Сегодня» над индексом, чтобы всегда было видно; на телефоне — своя вкладка. */}
+        <section className="pane pane-today" aria-label={t('app.todayPane')}>
+          <TodayPanel
+            now={now}
+            meetingsFor={busyFor}
+            forecast={forecast}
+            gate={settings.gate}
+            commuteMinutes={settings.commuteMinutes}
+            wake={wake}
+            onWake={setWake}
+          />
+        </section>
+        <section className="pane pane-week" aria-label={t('app.weekPane')}>
           <StatsBar
             semester={semester}
             misery={misery}
@@ -336,7 +400,7 @@ export function App() {
         meetingsFor={classesFor}
         initialSemester={todaySemester ?? semester}
         initialDay={todaySemester ? dayOf(now) : null}
-        hidden={slot !== null || autoPickOpen || wrappedOpen || importOpen}
+        hidden={slot !== null || autoPickOpen || wrappedOpen || importOpen || tool !== null || tour !== null}
         gate={settings.gate}
         onGate={(gate) => setSettings((s) => ({ ...s, gate }))}
       />
@@ -350,7 +414,7 @@ export function App() {
             dispatch({ kind: 'replacePlan', plan: next });
             setImportOpen(false);
             setNotice({
-              text: 'Imported from Inbar.',
+              text: t('notice.imported'),
               kind: 'ok',
               undo: () => dispatch({ kind: 'replacePlan', plan: previous }),
             });
@@ -374,7 +438,7 @@ export function App() {
             setSettings(pendingBackup.settings);
             setPendingBackup(null);
             setNotice({
-              text: `Loaded ${pendingBackup.plan.courses.length} ${pendingBackup.plan.courses.length === 1 ? 'course' : 'courses'} from the file.`,
+              text: t('notice.loaded', { n: pendingBackup.plan.courses.length }),
               kind: 'ok',
               undo: () => {
                 dispatch({ kind: 'replacePlan', plan: previousPlan });
@@ -395,18 +459,37 @@ export function App() {
                 className="btn btn-quiet btn-small"
                 onClick={() => {
                   notice.undo?.();
-                  setNotice({ text: 'Undone — your previous schedule is back.', kind: 'ok' });
+                  setNotice({ text: t('notice.undone'), kind: 'ok' });
                 }}
               >
-                Undo
+                {t('common.undo')}
               </button>
             )}
-            <button type="button" className="icon-btn" onClick={() => setNotice(null)} aria-label="Dismiss">
+            <button type="button" className="icon-btn" onClick={() => setNotice(null)} aria-label={t('common.dismiss')}>
               ×
             </button>
           </span>
         </div>
       )}
+
+      {tool === 'calendar' && (
+        <CalendarDialog
+          plan={plan}
+          courses={courseMap}
+          semester={semester}
+          onClose={() => setTool(null)}
+          onSaved={() => setNotice({ text: t('cal.saved'), kind: 'ok' })}
+        />
+      )}
+      {tool === 'friend' && (
+        <FriendDialog plan={plan} courses={courseMap} semester={semester} initialPayload={friendPayload} onClose={() => setTool(null)} />
+      )}
+      {tool === 'attendance' && (
+        <AttendanceDialog plan={plan} courses={courseMap} semester={semester} now={now} onClose={() => setTool(null)} />
+      )}
+      {tool === 'exams' && <ExamsDialog plan={plan} courses={courseMap} now={now} onClose={() => setTool(null)} />}
+      {tool === 'degree' && <DegreeDialog plan={plan} courses={courseMap} onClose={() => setTool(null)} />}
+      {tour && <Tour skipWelcome={tour === 'steps'} onTab={tourTab} onDemo={loadDemo} onClose={closeTour} />}
 
       {wrappedOpen && (
         <Wrapped
@@ -422,26 +505,37 @@ export function App() {
 
       <footer className="footer">
         <p>
-          <strong>Unofficial draft planner.</strong> Not affiliated with Bar-Ilan University. It does not
-          register you for anything — registration happens only in Inbar. Always double-check there.
+          <strong>{t('footer.unofficial')}</strong> {t('footer.text')}
         </p>
         {catalog.metadata.isSample && (
           <p className="muted">
-            Sample data, snapshot {catalog.metadata.updatedAt}. Groups marked <span className="demo-tag">DEMO</span>{' '}
-            are invented for testing; credits are placeholders.
+            {(() => {
+              // {demo} в переводе заменяется бейджем DEMO.
+              const [before, after = ''] = t('footer.sample', { date: catalog.metadata.updatedAt }).split('{demo}');
+              return (
+                <>
+                  {before}
+                  <span className="demo-tag">{t('common.demo')}</span>
+                  {after}
+                </>
+              );
+            })()}
           </p>
         )}
       </footer>
 
-      <nav className="tabbar" aria-label="Sections">
+      <nav className="tabbar" aria-label={t('app.sections')}>
         <button type="button" className={tab === 'today' ? 'on' : ''} onClick={() => setTab('today')}>
-          Today
+          {t('tab.today')}
         </button>
         <button type="button" className={tab === 'courses' ? 'on' : ''} onClick={() => setTab('courses')}>
-          Courses <span className="count">{plan.courses.length}</span>
+          {t('tab.courses')} <span className="count">{plan.courses.length}</span>
         </button>
         <button type="button" className={tab === 'week' ? 'on' : ''} onClick={() => setTab('week')}>
-          Week {conflicts.length > 0 && <span className="count warn">{conflicts.length}</span>}
+          {t('tab.week')} {conflicts.length > 0 && <span className="count warn">{conflicts.length}</span>}
+        </button>
+        <button type="button" className={tab === 'more' ? 'on' : ''} onClick={() => setTab('more')}>
+          {t('tab.more')}
         </button>
       </nav>
     </div>

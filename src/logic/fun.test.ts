@@ -6,7 +6,16 @@ import { dayMisery, hellDay } from './misery';
 import type { PlacedMeeting } from './schedule';
 import type { Plan } from './selection';
 import { remainingSessions, semesterProgress, weekdayCount } from './today';
-import { dayWalkMeters, formatDistance, funDistance, stepsFor, weekWalkMeters } from './walking';
+import {
+  dayWalkMeters,
+  distanceParts,
+  formatDistance,
+  FUN_DISTANCES,
+  funComparison,
+  funDistance,
+  stepsFor,
+  weekWalkMeters,
+} from './walking';
 import { rainAt, rainWarnings, type HourlyForecast } from './weather';
 import { computeWrapped } from './wrapped';
 
@@ -89,6 +98,16 @@ describe('walking', () => {
     expect(funDistance(8_000)).toBe('1.4× the nucleus of interstellar comet 3I/ATLAS (≤5.6 km across)');
     expect(funDistance(150_000)).toBe('1.5× the Kármán line — the edge of space');
   });
+
+  it('gives the comparison as data for translation', () => {
+    expect(funComparison(0)).toEqual({ kind: 'none' });
+    expect(funComparison(50)).toMatchObject({ kind: 'percent', id: 'football', percent: 48 });
+    expect(funComparison(5_700)).toMatchObject({ kind: 'about', id: 'atlas' });
+    expect(funComparison(150_000)).toMatchObject({ kind: 'times', id: 'karman', ratio: 1.5 });
+    expect(new Set(FUN_DISTANCES.map((d) => d.id)).size).toBe(FUN_DISTANCES.length);
+    expect(distanceParts(4230)).toEqual({ value: 4.23, digits: 1, unit: 'km' });
+    expect(distanceParts(434)).toEqual({ value: 430, digits: 0, unit: 'm' });
+  });
 });
 
 describe('coffee in the gap', () => {
@@ -131,8 +150,7 @@ describe('rain warning', () => {
   it('warns about a long walk in the rain', () => {
     const warnings = rainWarnings(forecast, '2026-11-11', dayJourney(day, 4));
     expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toMatchObject({ at: 16 * 60, prob: 80 });
-    expect(warnings[0]!.text).toContain('105 → 901');
+    expect(warnings[0]).toMatchObject({ at: 16 * 60, prob: 80, from: '105', to: '901' });
   });
 
   it('stays quiet when it is dry', () => {
@@ -142,11 +160,11 @@ describe('rain warning', () => {
 
   it('includes the walk from the gate and back', () => {
     const wet = { ...forecast, precipitation_probability: forecast.time.map(() => 90) };
-    const warnings = rainWarnings(wet, '2026-11-11', dayJourney(day, 4, 'gate-40'), 'Gate 40');
-    expect(warnings.map((w) => w.text.split(' · ')[1]!.split(' (')[0])).toEqual([
-      'Gate 40 → 105',
+    const warnings = rainWarnings(wet, '2026-11-11', dayJourney(day, 4, 'gate-40'), 'gate-40');
+    expect(warnings.map((w) => `${w.from} → ${w.to}`)).toEqual([
+      'gate-40 → 105',
       '105 → 901',
-      '901 → Gate 40',
+      '901 → gate-40',
     ]);
   });
 });

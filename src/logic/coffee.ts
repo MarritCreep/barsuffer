@@ -6,15 +6,22 @@ import type { PlacedMeeting } from './schedule';
  * «Кофе в окне» — ЭКСПЕРИМЕНТ. Точки еды и кофе сняты на глаз со схемы кампуса
  * (значки «מסעדה / בית קפה»), в тех же координатах, что и здания.
  */
-export const CAFES: { id: string; label: string; xy: [number, number] }[] = [
-  { id: 'cafe-905', label: 'Café near 905', xy: [483, 103] },
-  { id: 'cafe-604', label: 'Café near 604', xy: [480, 494] },
-  { id: 'cafe-409', label: 'Café near 409', xy: [437, 627] },
-  { id: 'cafe-404', label: 'Café near 404', xy: [531, 659] },
-  { id: 'cafe-306', label: 'Café near 306', xy: [662, 706] },
-  { id: 'cafe-402', label: 'Café near 402', xy: [513, 728] },
-  { id: 'cafe-212', label: 'Café near 212', xy: [437, 800] },
-  { id: 'cafe-107', label: 'Café near 107', xy: [641, 1012] },
+export const CAFES: {
+  id: string;
+  /** Английская подпись; в интерфейсе — t('map.cafe', { b: near }). */
+  label: string;
+  /** Ближайшее здание (номер не переводится). */
+  near: string;
+  xy: [number, number];
+}[] = [
+  { id: 'cafe-905', label: 'Café near 905', near: '905', xy: [483, 103] },
+  { id: 'cafe-604', label: 'Café near 604', near: '604', xy: [480, 494] },
+  { id: 'cafe-409', label: 'Café near 409', near: '409', xy: [437, 627] },
+  { id: 'cafe-404', label: 'Café near 404', near: '404', xy: [531, 659] },
+  { id: 'cafe-306', label: 'Café near 306', near: '306', xy: [662, 706] },
+  { id: 'cafe-402', label: 'Café near 402', near: '402', xy: [513, 728] },
+  { id: 'cafe-212', label: 'Café near 212', near: '212', xy: [437, 800] },
+  { id: 'cafe-107', label: 'Café near 107', near: '107', xy: [641, 1012] },
 ];
 
 /** Окно короче этого — не повод идти за кофе. */

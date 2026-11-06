@@ -1,0 +1,362 @@
+/* ---------- Экзамены: свои даты, отсчёт, промежутки, индекс сессии ---------- */
+.exams-modal {
+  max-width: 920px;
+}
+
+.exams-body {
+  gap: 12px;
+}
+
+.exams-empty {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+/* Обратный отсчёт */
+.exams-countdown {
+  display: grid;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--accent);
+  background: var(--surface-2);
+}
+
+.exams-countdown .pick-label {
+  color: var(--accent);
+}
+
+.exams-countdown.is-soon {
+  border-inline-start-color: var(--warn);
+}
+
+.exams-when {
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.exams-what {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.exams-done {
+  margin: 0;
+  font-weight: 600;
+}
+
+/* Две колонки на широком экране: форма и таймлайн */
+.exams-cols {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 760px) {
+  .exams-cols {
+    grid-template-columns: minmax(260px, 1fr) minmax(0, 1.3fr);
+    align-items: start;
+  }
+}
+
+/* Форма */
+.exams-form {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.exams-form .pick-label {
+  color: var(--accent);
+}
+
+.exams-field {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+  min-inline-size: 0;
+}
+
+.exams-field > span,
+.exams-field > legend {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.exams-field input,
+.exams-field select {
+  inline-size: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px; /* без автозума на iOS */
+  color-scheme: inherit;
+}
+
+.exams-field input:focus-visible,
+.exams-field select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.exams-moeds {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.exams-moeds .sem-tabs,
+.exams-season > .sem-tabs {
+  margin-bottom: 0;
+  flex-wrap: wrap;
+}
+
+.exams-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.exams-hints {
+  display: grid;
+  gap: 2px;
+}
+
+.exams-hints:empty {
+  display: none;
+}
+
+.exams-form .modal-actions {
+  justify-content: flex-start;
+}
+
+.exams-form .link-btn {
+  justify-self: start;
+  text-align: start;
+}
+
+/* Сезон одного моэда */
+.exams-season {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.exams-score {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  --verdict: var(--accent);
+}
+
+.exams-score.v-chill {
+  --verdict: var(--c2);
+}
+
+.exams-score.v-ok {
+  --verdict: var(--c5);
+}
+
+.exams-score.v-coffee {
+  --verdict: var(--c1);
+}
+
+.exams-score.v-pray {
+  --verdict: var(--danger);
+}
+
+.exams-score-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.exams-score-num {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--verdict);
+  min-inline-size: 2ch;
+  text-align: center;
+}
+
+.exams-score-text {
+  display: grid;
+  gap: 2px;
+}
+
+.exams-score .pick-label {
+  color: var(--muted);
+}
+
+.exams-verdict {
+  font-weight: 600;
+}
+
+.exams-meter {
+  block-size: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.exams-meter > span {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--verdict);
+}
+
+.exams-alert {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* Таймлайн */
+.exams-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  padding-inline-start: 18px;
+  border-inline-start: 2px solid var(--border);
+  display: grid;
+  gap: 4px;
+}
+
+.exams-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'date actions'
+    'name actions';
+  align-items: center;
+  column-gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.exams-item::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: -25px;
+  inset-block-start: 50%;
+  inline-size: 10px;
+  block-size: 10px;
+  margin-block-start: -5px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+}
+
+.exams-item.is-past {
+  opacity: 0.6;
+}
+
+.exams-item.is-past::before {
+  background: var(--muted);
+}
+
+.exams-item.is-editing {
+  border-color: var(--accent);
+}
+
+.exams-date {
+  grid-area: date;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.exams-name {
+  grid-area: name;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+
+.exams-actions {
+  grid-area: actions;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+}
+
+.exams-gap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.exams-gap::before {
+  content: '↓';
+  opacity: 0.7;
+}
+
+.exams-gap.is-tightest {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.exams-tight-chip {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.exams-gap.is-same {
+  margin-block: 2px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--danger);
+  color: var(--bg);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.exams-gap.is-same::before {
+  content: '⚠';
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .exams-gap.is-same {
+    animation: exams-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes exams-pulse {
+  50% {
+    filter: brightness(1.2);
+  }
+}
+
+.exams-disclaimer {
+  border-block-start: 1px solid var(--line);
+  padding-block-start: 8px;
+}

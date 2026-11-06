@@ -1,4 +1,5 @@
-import { ACADEMIC_CALENDAR, type SemesterDates } from '../data/calendar';
+import { ACADEMIC_CALENDAR, NO_CLASS_PERIODS, type NoClassPeriod, type SemesterDates } from '../data/calendar';
+import { holidayEffect, periodOn } from './holidays';
 import type { Day, Semester } from '../data/types';
 import type { PlacedMeeting } from './schedule';
 
@@ -74,32 +75,36 @@ export function semesterProgress(
   };
 }
 
-/** Сколько занятий ещё впереди в семестре (после текущего момента). */
+/** Сколько занятий ещё впереди в семестре (после текущего момента), без отменённых праздниками. */
 export function remainingSessions(
   date: Date,
   semester: Semester,
   meetings: readonly PlacedMeeting[],
   calendar: readonly SemesterDates[] = ACADEMIC_CALENDAR,
+  periods: readonly NoClassPeriod[] = NO_CLASS_PERIODS,
 ): number {
   const dates = calendar.find((s) => s.semester === semester);
   if (!dates) return 0;
   const end = parseDate(dates.end);
   const start = parseDate(dates.start);
   const today = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-  const from = tomorrow > start ? tomorrow : start;
   const nowMin = date.getHours() * 60 + date.getMinutes();
-  const todayDay = dayOf(date);
-  const inSemesterToday = today >= start && today <= end;
+  const classes = meetings.filter((m) => !m.isBlock);
   let count = 0;
-  for (const m of meetings) {
-    if (m.isBlock) continue;
-    count += weekdayCount(from, end, m.day);
-    if (inSemesterToday && m.day === todayDay && m.start > nowMin) count++;
+  for (let d = today > start ? today : start; d <= end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+    const day = dayOf(d);
+    if (day === null) continue;
+    const iso = localDate(d);
+    const period = periodOn(iso, periods);
+    const isToday = d.getTime() === today.getTime();
+    for (const m of classes) {
+      if (m.day !== day || holidayEffect(m, period) === 'cancelled') continue;
+      if (isToday && m.start <= nowMin) continue;
+      count++;
+    }
   }
   return count;
 }
-
 export function semesterOn(date: Date, calendar: readonly SemesterDates[] = ACADEMIC_CALENDAR): Semester | null {
   const today = localDate(date);
   return calendar.find((s) => s.start <= today && today <= s.end)?.semester ?? null;
@@ -111,28 +116,34 @@ export function dayOf(date: Date): Day | null {
   return js === 6 ? null : ((js + 1) as Day);
 }
 
-export type AgendaStatus = 'done' | 'now' | 'next' | 'later';
+export type AgendaStatus = 'done' | 'now' | 'next' | 'later' | 'cancelled';
 
 export interface AgendaItem {
   meeting: PlacedMeeting;
   status: AgendaStatus;
+  /** Встреча короче из-за праздника (занятия до определённого часа). */
+  shortened?: boolean;
 }
 
 export type TodayInfo =
   | { kind: 'no-semester' }
   | { kind: 'shabbat'; semester: Semester }
-  | { kind: 'day'; semester: Semester; day: Day; items: AgendaItem[] };
+  | { kind: 'holiday'; semester: Semester; holiday: NoClassPeriod }
+  | { kind: 'day'; semester: Semester; day: Day; items: AgendaItem[]; holiday?: NoClassPeriod };
 
 /** Что сегодня: занятия и блокировки текущего дня с отметкой «прошло / идёт / следующее». */
 export function todayInfo(
   date: Date,
   meetingsFor: (semester: Semester) => PlacedMeeting[],
   calendar: readonly SemesterDates[] = ACADEMIC_CALENDAR,
+  periods: readonly NoClassPeriod[] = NO_CLASS_PERIODS,
 ): TodayInfo {
   const semester = semesterOn(date, calendar);
   if (!semester) return { kind: 'no-semester' };
   const day = dayOf(date);
   if (day === null) return { kind: 'shabbat', semester };
+  const holiday = periodOn(localDate(date), periods);
+  if (holiday?.off) return { kind: 'holiday', semester, holiday };
 
   const now = date.getHours() * 60 + date.getMinutes();
   const meetings = meetingsFor(semester)
@@ -141,30 +152,34 @@ export function todayInfo(
 
   let nextAssigned = false;
   const items = meetings.map((meeting): AgendaItem => {
-    if (meeting.end <= now) return { meeting, status: 'done' };
-    if (meeting.start <= now) return { meeting, status: 'now' };
+    const effect = meeting.isBlock ? null : holidayEffect(meeting, holiday);
+    if (effect === 'cancelled') return { meeting, status: 'cancelled' };
+    const short = effect === 'shortened' ? { shortened: true } : {};
+    if (meeting.end <= now) return { meeting, status: 'done', ...short };
+    if (meeting.start <= now) return { meeting, status: 'now', ...short };
     if (!nextAssigned) {
       nextAssigned = true;
-      return { meeting, status: 'next' };
+      return { meeting, status: 'next', ...short };
     }
-    return { meeting, status: 'later' };
+    return { meeting, status: 'later', ...short };
   });
-  return { kind: 'day', semester, day, items };
+  return { kind: 'day', semester, day, items, ...(holiday ? { holiday } : {}) };
 }
 
-/** Первое занятие в ближайшие дни после сегодняшнего (до недели вперёд). */
+/** Первое занятие в ближайшие дни после сегодняшнего (до трёх недель вперёд — праздники бывают длинными). */
 export function nextClassAfterToday(
   date: Date,
   meetingsFor: (semester: Semester) => PlacedMeeting[],
   calendar: readonly SemesterDates[] = ACADEMIC_CALENDAR,
+  periods: readonly NoClassPeriod[] = NO_CLASS_PERIODS,
 ): { date: Date; meeting: PlacedMeeting } | null {
-  for (let offset = 1; offset <= 7; offset++) {
+  for (let offset = 1; offset <= 21; offset++) {
     const d = new Date(date.getFullYear(), date.getMonth(), date.getDate() + offset);
     const semester = semesterOn(d, calendar);
     const day = dayOf(d);
     if (!semester || day === null) continue;
     const first = meetingsFor(semester)
-      .filter((m) => m.day === day && !m.isBlock)
+      .filter((m) => m.day === day && !m.isBlock && holidayEffect(m, periodOn(localDate(d), periods)) !== 'cancelled')
       .sort((a, b) => a.start - b.start)[0];
     if (first) return { date: d, meeting: first };
   }

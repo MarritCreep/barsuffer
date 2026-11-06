@@ -1,5 +1,4 @@
 import type { DayJourney } from './campus';
-import { formatMinutes } from './time';
 
 /**
  * Предупреждение о дожде. Прогноз — бесплатный Open-Meteo (open-meteo.com), без ключа.
@@ -9,13 +8,15 @@ export const CAMPUS_LAT = 32.0686;
 export const CAMPUS_LON = 34.8432;
 export const FORECAST_URL =
   `https://api.open-meteo.com/v1/forecast?latitude=${CAMPUS_LAT}&longitude=${CAMPUS_LON}` +
-  '&hourly=precipitation_probability,precipitation&timezone=Asia%2FJerusalem&forecast_days=3';
+  '&hourly=precipitation_probability,precipitation,temperature_2m&timezone=Asia%2FJerusalem&forecast_days=3';
 
 /** Ответ Open-Meteo (нужные поля). Время — местное, "YYYY-MM-DDTHH:00". */
 export interface HourlyForecast {
   time: string[];
   precipitation_probability: (number | null)[];
   precipitation: (number | null)[];
+  /** °C; для предупреждения о жаре (хамсин). В старом кеше может не быть. */
+  temperature_2m?: (number | null)[];
 }
 
 export const RAIN_PROBABILITY = 50;
@@ -47,27 +48,30 @@ export interface RainWarning {
   prob: number;
   mm: number;
   walk: number;
-  text: string;
+  /** Откуда и куда: номер здания или id ворот ('gate-40'); текст делает интерфейс. */
+  from: string;
+  to: string;
 }
 
-/** Переходы дня (от ворот, между парами, к воротам), которые попадают под дождь. */
+/** Переходы дня (от ворот, между парами, к воротам), которые попадают под дождь. `gate` — id ворот. */
 export function rainWarnings(
   forecast: HourlyForecast,
   date: string,
   journey: DayJourney,
-  gateName?: string,
+  gate?: string,
 ): RainWarning[] {
-  const walks: { at: number; walk: number | null; text: string }[] = [];
+  const walks: { at: number; walk: number | null; from: string; to: string }[] = [];
   const first = journey.stops[0];
   const last = journey.stops[journey.stops.length - 1];
-  if (first && journey.arrive !== null && gateName) {
-    walks.push({ at: first.start - journey.arrive, walk: journey.arrive, text: `${gateName} → ${first.building}` });
+  const where = (building?: string) => building ?? '?';
+  if (first && journey.arrive !== null && gate) {
+    walks.push({ at: first.start - journey.arrive, walk: journey.arrive, from: gate, to: where(first.building) });
   }
   for (const leg of journey.legs) {
-    walks.push({ at: leg.from.end, walk: leg.walk, text: `${leg.from.building} → ${leg.to.building}` });
+    walks.push({ at: leg.from.end, walk: leg.walk, from: where(leg.from.building), to: where(leg.to.building) });
   }
-  if (last && journey.leave !== null && gateName) {
-    walks.push({ at: last.end, walk: journey.leave, text: `${last.building} → ${gateName}` });
+  if (last && journey.leave !== null && gate) {
+    walks.push({ at: last.end, walk: journey.leave, from: where(last.building), to: gate });
   }
 
   const warnings: RainWarning[] = [];
@@ -80,7 +84,8 @@ export function rainWarnings(
       prob: r.prob,
       mm: r.mm,
       walk: w.walk,
-      text: `${formatMinutes(w.at)} · ${w.text} (≈${w.walk} min outside)`,
+      from: w.from,
+      to: w.to,
     });
   }
   return warnings;

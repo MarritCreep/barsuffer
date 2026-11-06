@@ -66,7 +66,7 @@ describe('parseInbarPdf', () => {
   it('explains a PDF that is not an Inbar schedule', () => {
     const result = parseInbarPdf([{ height: 800, items: [{ str: 'Hello', x: 100, y: 400, w: 30, font: 'f1' }] }]);
     expect(result.meetings).toEqual([]);
-    expect(result.warnings[0]).toMatch(/weekday header/);
+    expect(result.warnings[0]).toMatchObject({ code: 'noHeader', message: expect.stringMatching(/weekday header/) });
   });
 });
 
@@ -184,7 +184,13 @@ describe('buildImport', () => {
     });
     const imp = buildImport(parsed, catalog);
     expect(imp.mismatches).toEqual([
-      { courseId: '63013', group: '18', name: 'Language and Communication', inbar: 'Tue 08:00–10:00' },
+      {
+        courseId: '63013',
+        group: '18',
+        name: 'Language and Communication',
+        inbar: 'Tue 08:00–10:00',
+        times: [{ day: 3, start: 8 * 60, end: 10 * 60 }],
+      },
     ]);
     // Группа всё равно выбрана — студент сам решит, чему верить.
     expect(imp.planned.find((p) => p.courseId === '63013')!.picks).toEqual({ lecture: '18' });

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useI18n } from '../i18n/I18n';
+import type { MessageKey } from '../i18n/messages';
 import { DEFAULT_ACCENT, hexToRgb, rgbToHex, type Appearance } from '../state/appearance';
 
 interface Props {
@@ -10,21 +12,26 @@ interface Props {
   onApply: (a: Appearance) => void;
 }
 
-const PRESETS: { name: string; hex: string }[] = [
-  { name: 'Violet', hex: '#8b7cff' },
-  { name: 'Blue', hex: '#3d8bff' },
-  { name: 'Teal', hex: '#22c7b8' },
-  { name: 'Green', hex: '#3fbf5a' },
-  { name: 'Gold', hex: '#f2b84b' },
-  { name: 'Orange', hex: '#ff7a1a' },
-  { name: 'Red', hex: '#ff4d5e' },
-  { name: 'Pink', hex: '#ff5fb0' },
+const PRESETS: { name: MessageKey; hex: string }[] = [
+  { name: 'theme.preset.violet', hex: '#8b7cff' },
+  { name: 'theme.preset.blue', hex: '#3d8bff' },
+  { name: 'theme.preset.teal', hex: '#22c7b8' },
+  { name: 'theme.preset.green', hex: '#3fbf5a' },
+  { name: 'theme.preset.gold', hex: '#f2b84b' },
+  { name: 'theme.preset.orange', hex: '#ff7a1a' },
+  { name: 'theme.preset.red', hex: '#ff4d5e' },
+  { name: 'theme.preset.pink', hex: '#ff5fb0' },
 ];
 
-const CHANNELS = ['R', 'G', 'B'] as const;
+const CHANNELS = [
+  { short: 'R', label: 'theme.red' },
+  { short: 'G', label: 'theme.green' },
+  { short: 'B', label: 'theme.blue' },
+] as const;
 
 /** Кнопка темы в шапке и панель выбора: основа, цвет RGB, переливающийся туман. */
 export function ThemePicker({ appearance, onPreview, onApply }: Props) {
+  const { t, dir } = useI18n();
   const [open, setOpen] = useState(false);
   const [initial, setInitial] = useState(appearance);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -56,7 +63,7 @@ export function ThemePicker({ appearance, onPreview, onApply }: Props) {
 
   const set = (patch: Partial<Appearance>) => onPreview({ ...draft, ...patch });
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [anchor, setAnchor] = useState({ top: 64, right: 16 });
+  const [anchor, setAnchor] = useState<{ top: number; left?: number; right?: number }>({ top: 64, right: 16 });
 
   return (
     <span className="theme-picker">
@@ -67,13 +74,18 @@ export function ThemePicker({ appearance, onPreview, onApply }: Props) {
         onClick={() => {
           if (open) return cancel();
           const r = buttonRef.current?.getBoundingClientRect();
-          if (r) setAnchor({ top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) });
+          if (r)
+            setAnchor(
+              dir === 'rtl'
+                ? { top: r.bottom + 8, left: Math.max(8, r.left) }
+                : { top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) },
+            );
           setInitial(appearance);
           setOpen(true);
         }}
-        aria-label="Theme and colour"
+        aria-label={t('theme.button')}
         aria-expanded={open}
-        title="Theme and colour"
+        title={t('theme.button')}
       >
         <span className="theme-swatch" style={{ background: color }} aria-hidden="true" />
       </button>
@@ -88,12 +100,12 @@ export function ThemePicker({ appearance, onPreview, onApply }: Props) {
             ref={panelRef}
             className="theme-panel"
             role="dialog"
-            aria-label="Theme and colour"
-            style={{ top: anchor.top, right: anchor.right }}
+            aria-label={t('theme.button')}
+            style={{ top: anchor.top, left: anchor.left, right: anchor.right }}
           >
-            <strong className="theme-title">Theme</strong>
+            <strong className="theme-title">{t('theme.title')}</strong>
 
-            <div className="sem-tabs" role="tablist" aria-label="Base theme">
+            <div className="sem-tabs" role="tablist" aria-label={t('theme.base')}>
               {(['dark', 'light'] as const).map((m) => (
                 <button
                   key={m}
@@ -103,7 +115,7 @@ export function ThemePicker({ appearance, onPreview, onApply }: Props) {
                   className={draft.mode === m ? 'on' : ''}
                   onClick={() => set({ mode: m })}
                 >
-                  {m === 'dark' ? 'Dark' : 'Light'}
+                  {m === 'dark' ? t('theme.dark') : t('theme.light')}
                 </button>
               ))}
             </div>
@@ -113,15 +125,15 @@ export function ThemePicker({ appearance, onPreview, onApply }: Props) {
                 type="color"
                 value={color}
                 onChange={(e) => set({ accent: e.target.value.toLowerCase() })}
-                aria-label="Pick a colour"
+                aria-label={t('theme.pick')}
               />
               <code className="theme-hex">{color}</code>
             </div>
 
             <div className="theme-sliders">
               {CHANNELS.map((ch, i) => (
-                <label key={ch} className="weight-row">
-                  <span>{ch}</span>
+                <label key={ch.short} className="weight-row">
+                  <span>{ch.short}</span>
                   <input
                     type="range"
                     min={0}
@@ -132,14 +144,14 @@ export function ThemePicker({ appearance, onPreview, onApply }: Props) {
                       next[i] = Number(e.target.value);
                       set({ accent: rgbToHex(next) });
                     }}
-                    aria-label={`${ch === 'R' ? 'Red' : ch === 'G' ? 'Green' : 'Blue'} channel`}
+                    aria-label={t(ch.label)}
                   />
                   <span className="weight-value">{rgb[i]}</span>
                 </label>
               ))}
             </div>
 
-            <div className="theme-presets" aria-label="Preset colours">
+            <div className="theme-presets" aria-label={t('theme.presets')}>
               {PRESETS.map((p) => (
                 <button
                   key={p.hex}
@@ -147,23 +159,23 @@ export function ThemePicker({ appearance, onPreview, onApply }: Props) {
                   className={`theme-preset ${color === p.hex ? 'on' : ''}`}
                   style={{ background: p.hex }}
                   onClick={() => set({ accent: p.hex })}
-                  aria-label={p.name}
-                  title={p.name}
+                  aria-label={t(p.name)}
+                  title={t(p.name)}
                 />
               ))}
             </div>
 
             <label className="block-row theme-fog">
               <input type="checkbox" checked={draft.fog} onChange={(e) => set({ fog: e.target.checked })} />
-              Shimmering colour — a slow fog of your colour behind the page
+              {t('theme.fog')}
             </label>
 
             <div className="modal-actions">
               <button type="button" className="link-btn" onClick={() => set({ accent: null, fog: false })}>
-                Reset
+                {t('common.reset')}
               </button>
               <button type="button" className="btn btn-quiet" onClick={cancel}>
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 type="button"
@@ -173,7 +185,7 @@ export function ThemePicker({ appearance, onPreview, onApply }: Props) {
                   setOpen(false);
                 }}
               >
-                Apply
+                {t('common.apply')}
               </button>
             </div>
           </div>

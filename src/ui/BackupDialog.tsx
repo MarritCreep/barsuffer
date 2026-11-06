@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { Course } from '../data/types';
+import { useI18n } from '../i18n/I18n';
 import type { Plan } from '../logic/selection';
-import { TERM_LABEL } from './format';
+import { rich } from './ImportDialog';
 
 interface Props {
   fileName: string;
@@ -15,6 +16,7 @@ interface Props {
 
 /** Перед загрузкой файла расписания показываем, что в нём, и спрашиваем подтверждение. */
 export function BackupDialog({ fileName, incoming, current, dropped, courses, onApply, onCancel }: Props) {
+  const { t, term } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => ref.current?.focus(), []);
   const blocks = incoming.blocks?.length ?? 0;
@@ -32,20 +34,24 @@ export function BackupDialog({ fileName, incoming, current, dropped, courses, on
       >
         <div className="slot-head">
           <div>
-            <span className="pick-label">Open file</span>
+            <span className="pick-label">{t('courses.openFile')}</span>
             <strong id="backup-title" className="slot-time">
-              Load this schedule?
+              {t('backup.title')}
             </strong>
           </div>
-          <button type="button" className="icon-btn" onClick={onCancel} aria-label="Close">
+          <button type="button" className="icon-btn" onClick={onCancel} aria-label={t('common.close')}>
             ×
           </button>
         </div>
         <div className="modal-body">
           <p>
-            <span className="muted">{fileName}</span> has <strong>{incoming.courses.length}</strong>{' '}
-            {incoming.courses.length === 1 ? 'course' : 'courses'}
-            {blocks > 0 && ` and ${blocks} blocked ${blocks === 1 ? 'time' : 'times'}`}, plus your settings.
+            {rich(
+              t('backup.has', {
+                n: incoming.courses.length,
+                blocks: blocks > 0 ? t('backup.andBlocks', { n: blocks }) : '',
+              }),
+              { file: <span className="muted">{fileName}</span> },
+            )}
           </p>
           <ul className="import-list">
             {incoming.courses.map((c) => {
@@ -57,31 +63,26 @@ export function BackupDialog({ fileName, incoming, current, dropped, courses, on
                     {course?.name ?? c.courseId}{' '}
                     <span className="muted small">
                       {c.courseId}
-                      {course && ` · ${TERM_LABEL[course.term]}`} · {Object.values(c.picks).join(', ') || 'no groups yet'}
-                      {c.hidden && ' · hidden'}
+                      {course && ` · ${term(course.term)}`} · {Object.values(c.picks).join(', ') || t('backup.noGroups')}
+                      {c.hidden && ` · ${t('backup.hidden')}`}
                     </span>
                   </span>
                 </li>
               );
             })}
           </ul>
-          {dropped.length > 0 && (
-            <p className="hint-warn">Not in our catalog, will be skipped: {dropped.join(', ')}.</p>
-          )}
+          {dropped.length > 0 && <p className="hint-warn">{t('backup.dropped', { ids: dropped.join(', ') })}</p>}
           <div className="import-summary">
-            <strong>What will change</strong>
-            <span className="small">
-              Your current schedule ({current.courses.length} {current.courses.length === 1 ? 'course' : 'courses'}) and
-              settings will be replaced by this file.
-            </span>
-            <span className="muted small">You can undo this afterwards (Undo or Ctrl+Z).</span>
+            <strong>{t('import.whatChanges')}</strong>
+            <span className="small">{t('backup.replaced', { n: current.courses.length })}</span>
+            <span className="muted small">{t('import.undoHint')}</span>
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-quiet" onClick={onCancel}>
-              Don’t change
+              {t('import.dontChange')}
             </button>
             <button type="button" className="btn" onClick={onApply}>
-              Apply changes
+              {t('import.apply')}
             </button>
           </div>
         </div>

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DAYS, DAY_LABEL, type Course, type Semester } from '../data/types';
+import { DAYS, type Course, type Semester } from '../data/types';
+import { useI18n } from '../i18n/I18n';
+import type { MessageKey } from '../i18n/messages';
 import { autoPick, type AutoPickOutcome, type AutoPickResult } from '../logic/autopick';
 import { weeklyCommuteHours } from '../logic/load';
 import { computeMisery, MISERY_WEIGHTS, pickTitle, type MiseryWeights } from '../logic/misery';
 import { collectMeetings, termIncludes, type TimeSpan } from '../logic/schedule';
 import type { Plan } from '../logic/selection';
-import { formatHours, TERM_LABEL } from './format';
+import { rich } from './ImportDialog';
 import { GRID_END, GRID_START } from './WeekGrid';
 
 interface Props {
@@ -22,19 +24,14 @@ interface Props {
   onClose: () => void;
 }
 
-const WEIGHT_LABELS: [keyof MiseryWeights, string][] = [
-  ['campusDay', 'Each day on campus'],
-  ['earlyClass', 'Each class before 09:00'],
-  ['windowHour', 'Each hour of gap'],
-  ['friday', 'Classes on Friday'],
-  ['lateClass', 'Each class ending after 18:00'],
-];
+const WEIGHT_KEYS: (keyof MiseryWeights)[] = ['campusDay', 'earlyClass', 'windowHour', 'friday', 'lateClass'];
 
 const isDefault = (w: MiseryWeights) =>
   (Object.keys(MISERY_WEIGHTS) as (keyof MiseryWeights)[]).every((k) => w[k] === MISERY_WEIGHTS[k]);
 
 export function AutoPickDialog(props: Props) {
   const { plan, courses, semester, weights, onSetRequired, onApply, onClose } = props;
+  const { t, term } = useI18n();
   const [outcome, setOutcome] = useState<AutoPickOutcome | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -88,12 +85,12 @@ export function AutoPickDialog(props: Props) {
       >
         <div className="slot-head">
           <div>
-            <span className="pick-label">Auto-pick · Sem {semester}</span>
+            <span className="pick-label">{t('autopick.label', { sem: term(semester) })}</span>
             <strong id="autopick-title" className="slot-time">
-              {outcome ? 'Least painful schedules' : 'Which courses can’t you skip?'}
+              {t(outcome ? 'autopick.titleResults' : 'autopick.titleRequired')}
             </strong>
           </div>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+          <button type="button" className="icon-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
@@ -101,13 +98,10 @@ export function AutoPickDialog(props: Props) {
         {outcome === null ? (
           <div className="modal-body">
             {candidates.length === 0 ? (
-              <p className="empty">Add this semester’s courses first, then come back.</p>
+              <p className="empty">{t('autopick.noCandidates')}</p>
             ) : (
               <>
-                <p className="muted small">
-                  Mark every course you <strong>must</strong> take this semester. Auto-pick always includes them
-                  and only chooses their groups. Unmarked courses are optional — it may leave some out.
-                </p>
+                <p className="muted small">{rich(t('autopick.intro'))}</p>
                 <ul className="req-list">
                   {candidates.map(({ pc, course }) => (
                     <li key={pc.courseId} className={`req-item c${pc.color}`}>
@@ -120,12 +114,12 @@ export function AutoPickDialog(props: Props) {
                         <span className="req-text">
                           <span className="result-name">{course.name}</span>
                           <span className="result-meta">
-                            {course.courseId} · {TERM_LABEL[course.term]}
-                            {pc.hidden && ' · hidden now'}
+                            {course.courseId} · {term(course.term)}
+                            {pc.hidden && ` · ${t('autopick.hiddenNow')}`}
                           </span>
                         </span>
                         <span className={`chip ${pc.required ? 'chip-required' : ''}`}>
-                          {pc.required ? 'Required' : 'Optional'}
+                          {t(pc.required ? 'autopick.required' : 'autopick.optional')}
                         </span>
                       </label>
                     </li>
@@ -134,17 +128,14 @@ export function AutoPickDialog(props: Props) {
 
                 {optional.length > 0 && (
                   <div className="stepper-row">
-                    <span>
-                      Also take <strong>{take}</strong> of {optional.length} optional
-                      {optional.length === 1 ? ' course' : ' courses'}
-                    </span>
+                    <span>{rich(t('autopick.alsoTake', { n: optional.length, take }))}</span>
                     <span className="stepper">
                       <button
                         type="button"
                         className="icon-btn"
                         onClick={() => setOptionalToTake(Math.max(0, take - 1))}
                         disabled={take === 0}
-                        aria-label="Take fewer optional courses"
+                        aria-label={t('autopick.fewer')}
                       >
                         −
                       </button>
@@ -153,7 +144,7 @@ export function AutoPickDialog(props: Props) {
                         className="icon-btn"
                         onClick={() => setOptionalToTake(Math.min(optional.length, take + 1))}
                         disabled={take === optional.length}
-                        aria-label="Take more optional courses"
+                        aria-label={t('autopick.more')}
                       >
                         +
                       </button>
@@ -167,58 +158,54 @@ export function AutoPickDialog(props: Props) {
                   onToggle={(e) => setWeightsOpen((e.currentTarget as HTMLDetailsElement).open)}
                 >
                   <summary>
-                    Your suffering weights{custom ? ' (custom)' : ''}
-                    <span className="muted small"> — what hurts you most?</span>
+                    {t(custom ? 'autopick.weightsCustom' : 'autopick.weights')}
+                    <span className="muted small"> {t('autopick.weightsHint')}</span>
                   </summary>
                   <div className="weights-body">
-                    {WEIGHT_LABELS.map(([key, label]) => (
-                      <label key={key} className="weight-row">
-                        <span>{label}</span>
-                        <input
-                          type="range"
-                          min={0}
-                          max={30}
-                          step={1}
-                          value={weights[key]}
-                          onChange={(e) => props.onWeights({ ...weights, [key]: Number(e.target.value) })}
-                          aria-label={`${label}: points`}
-                        />
-                        <span className="weight-value">{weights[key]}</span>
-                      </label>
-                    ))}
+                    {WEIGHT_KEYS.map((key) => {
+                      const label = t(`autopick.weight.${key}` as MessageKey);
+                      return (
+                        <label key={key} className="weight-row">
+                          <span>{label}</span>
+                          <input
+                            type="range"
+                            min={0}
+                            max={30}
+                            step={1}
+                            value={weights[key]}
+                            onChange={(e) => props.onWeights({ ...weights, [key]: Number(e.target.value) })}
+                            aria-label={t('autopick.weightAria', { label })}
+                          />
+                          <span className="weight-value">{weights[key]}</span>
+                        </label>
+                      );
+                    })}
                     <div className="weights-foot">
-                      <span className="muted small">
-                        Used only for auto-pick. The index on the main screen stays standard, so friends can compare.
-                      </span>
+                      <span className="muted small">{t('autopick.weightsNote')}</span>
                       <button
                         type="button"
                         className="link-btn"
                         disabled={!custom}
                         onClick={() => props.onWeights({ ...MISERY_WEIGHTS })}
                       >
-                        Reset
+                        {t('common.reset')}
                       </button>
                     </div>
                   </div>
                 </details>
 
                 {props.blocked.length > 0 && (
-                  <p className="muted small">
-                    Your {props.blocked.length} blocked {props.blocked.length === 1 ? 'time' : 'times'} count as
-                    conflicts, so auto-pick avoids them.
-                  </p>
+                  <p className="muted small">{t('autopick.blocked', { n: props.blocked.length })}</p>
                 )}
 
                 {candidates.some((c) => c.course.term === 'year') && (
-                  <p className="muted small">Yearly courses: the groups chosen here apply to both semesters.</p>
+                  <p className="muted small">{t('autopick.yearly')}</p>
                 )}
 
                 <div className="modal-actions">
-                  {required.length === 0 && (
-                    <span className="hint-warn">Mark at least one required course to continue.</span>
-                  )}
+                  {required.length === 0 && <span className="hint-warn">{t('autopick.needRequired')}</span>}
                   <button type="button" className="btn" disabled={required.length === 0} onClick={run}>
-                    Find best schedules
+                    {t('autopick.find')}
                   </button>
                 </div>
               </>
@@ -227,19 +214,18 @@ export function AutoPickDialog(props: Props) {
         ) : (
           <div className="modal-body">
             <p className="muted small">
-              Your current schedule scores <strong>{current.score}</strong>
-              {custom && ' with your weights'}. Conflict-free options always come first.
+              {rich(t(custom ? 'autopick.currentCustom' : 'autopick.current', { score: current.score }))}
             </p>
             {outcome.unschedulable.length > 0 && (
               <p className="hint-warn">
-                Can’t build a valid group combination for: {outcome.unschedulable.map((id) => courses.get(id)?.name ?? id).join(', ')}.
+                {t('autopick.unschedulable', {
+                  names: outcome.unschedulable.map((id) => courses.get(id)?.name ?? id).join(', '),
+                })}
               </p>
             )}
-            {outcome.truncated && (
-              <p className="hint-warn">Too many combinations — showing the best found so far.</p>
-            )}
+            {outcome.truncated && <p className="hint-warn">{t('autopick.truncated')}</p>}
             {outcome.results.length === 0 ? (
-              <p className="empty">No schedule found.</p>
+              <p className="empty">{t('autopick.none')}</p>
             ) : (
               <ol className="ap-results">
                 {outcome.results.map((r, i) => (
@@ -258,7 +244,7 @@ export function AutoPickDialog(props: Props) {
             )}
             <div className="modal-actions">
               <button type="button" className="btn btn-quiet" onClick={() => setOutcome(null)}>
-                ← Change required courses
+                {t('autopick.back')}
               </button>
             </div>
           </div>
@@ -285,16 +271,18 @@ function ResultCard({
   commuteMinutes: number;
   onApply: () => void;
 }) {
+  const { t, num } = useI18n();
   const m = result.misery;
   const title = pickTitle(m, result.spans.length);
   const delta = m.score - current;
   const facts = [
-    `${m.campusDays} ${m.campusDays === 1 ? 'day' : 'days'}`,
-    `${m.windowHours}h gaps`,
-    m.earlyClasses > 0 && `${m.earlyClasses} before 9`,
-    m.lateClasses > 0 && `${m.lateClasses} after 18`,
-    m.hasFriday && 'Friday',
-    commuteMinutes > 0 && `${formatHours(weeklyCommuteHours(m.campusDays, commuteMinutes))}h on the road`,
+    t('common.days', { n: m.campusDays }),
+    t('autopick.fact.gaps', { h: num(m.windowHours, 1) }),
+    m.earlyClasses > 0 && t('autopick.fact.early', { n: m.earlyClasses }),
+    m.lateClasses > 0 && t('autopick.fact.late', { n: m.lateClasses }),
+    m.hasFriday && t('autopick.fact.friday'),
+    commuteMinutes > 0 &&
+      t('autopick.fact.road', { h: num(weeklyCommuteHours(m.campusDays, commuteMinutes), 1) }),
   ].filter(Boolean);
 
   return (
@@ -303,33 +291,30 @@ function ResultCard({
         <span className="ap-rank">#{rank}</span>
         <span className="ap-score">{m.score}</span>
         <span className="ap-title">
-          <span className="misery-title">{title.title}</span>
+          <span className="misery-title">{t(`title.${title.id}` as MessageKey)}</span>
           <span className="result-meta">
             {facts.join(' · ')}
             {delta !== 0 && (
               <span className={delta < 0 ? 'ap-better' : 'ap-worse'}>
                 {' '}
-                ({delta > 0 ? '+' : ''}
-                {delta} vs now)
+                {t('autopick.vsNow', { delta: `${delta > 0 ? '+' : ''}${delta}` })}
               </span>
             )}
           </span>
         </span>
         <button type="button" className="btn" onClick={onApply}>
-          Use this
+          {t('autopick.use')}
         </button>
       </div>
 
-      {result.conflicts > 0 && (
-        <p className="hint-warn">
-          {result.conflicts} {result.conflicts === 1 ? 'conflict' : 'conflicts'} — no conflict-free option exists
-        </p>
-      )}
+      {result.conflicts > 0 && <p className="hint-warn">{t('autopick.conflicts', { n: result.conflicts })}</p>}
 
       <MiniWeek result={result} colors={colors} />
 
       {result.skipped.length > 0 && (
-        <p className="result-meta">Leaves out: {result.skipped.map((id) => courses.get(id)?.name ?? id).join(', ')}</p>
+        <p className="result-meta">
+          {t('autopick.leavesOut', { names: result.skipped.map((id) => courses.get(id)?.name ?? id).join(', ') })}
+        </p>
       )}
     </li>
   );
@@ -337,12 +322,13 @@ function ResultCard({
 
 /** Маленькая сетка недели для сравнения вариантов. */
 function MiniWeek({ result, colors }: { result: AutoPickResult; colors: Map<string, number> }) {
+  const { day } = useI18n();
   const span = GRID_END - GRID_START;
   return (
     <div className="mini-week" aria-hidden="true">
       {DAYS.map((d) => (
         <div key={d} className="mini-day">
-          <span className="mini-label">{DAY_LABEL[d][0]}</span>
+          <span className="mini-label">{day(d)[0]}</span>
           <div className="mini-col">
             {result.spans
               .map((s, i) => ({ s, i }))

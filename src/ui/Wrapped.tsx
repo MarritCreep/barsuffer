@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import type { Course, Day } from '../data/types';
+import type { Course } from '../data/types';
+import { useI18n, type Translator } from '../i18n/I18n';
+import type { MessageKey } from '../i18n/messages';
 import type { Plan } from '../logic/selection';
-import { formatDistance, funDistance, stepsFor } from '../logic/walking';
+import { stepsFor } from '../logic/walking';
 import { computeWrapped, type WrappedScope, type WrappedStats } from '../logic/wrapped';
+import { distance, fixed, funText, titleText } from './weekText';
 
 interface Props {
   plan: Plan;
@@ -14,28 +17,20 @@ interface Props {
   onClose: () => void;
 }
 
-const SCOPES: { id: WrappedScope; label: string }[] = [
-  { id: 'A', label: 'Sem A' },
-  { id: 'B', label: 'Sem B' },
-  { id: 'year', label: 'Year' },
-];
-
-const DAY_FULL: Record<Day, string> = {
-  1: 'Sunday',
-  2: 'Monday',
-  3: 'Tuesday',
-  4: 'Wednesday',
-  5: 'Thursday',
-  6: 'Friday',
-};
+const SCOPES: WrappedScope[] = ['A', 'B', 'year'];
 
 const SITE = 'marritcreep.github.io/barsuffer';
 
-function scopeName(scope: WrappedScope): string {
-  return scope === 'year' ? 'the 2026–27 year' : `Semester ${scope}, 2026–27`;
+function scopeName(tr: Translator, scope: WrappedScope): string {
+  return tr.t(`wrapped.scope.${scope}` as MessageKey);
 }
 
-const fmt = (n: number) => Math.round(n).toLocaleString('en-US');
+function scopeLabel(tr: Translator, scope: WrappedScope): string {
+  return scope === 'year' ? tr.t('wrapped.year') : tr.term(scope);
+}
+
+/** Целое число в формате языка (как прежнее toLocaleString('en-US')). */
+const fmt = (tr: Translator, n: number) => tr.num(Math.round(n));
 
 interface Slide {
   key: string;
@@ -46,86 +41,88 @@ interface Slide {
 }
 
 /** Тексты слайдов: будущее до периода, «уже/ещё» во время, прошедшее после. */
-function buildSlides(s: WrappedStats, commuteMinutes: number): Slide[] {
-  const will = (future: string, past: string) => (s.phase === 'after' ? past : future);
+function buildSlides(tr: Translator, s: WrappedStats, commuteMinutes: number): Slide[] {
+  const { t } = tr;
+  /** Ключ `<base>.future` до/во время периода, `<base>.past` — после. */
+  const will = (base: string) => t(`${base}.${s.phase === 'after' ? 'past' : 'future'}` as MessageKey);
+  const count = (key: MessageKey, n: number, extra?: Record<string, string | number>) =>
+    t(key, { n: Math.round(n), count: fmt(tr, n), ...extra });
   const slides: Slide[] = [];
 
   slides.push({
     key: 'intro',
     kicker: 'BarSuffer Wrapped',
-    big: s.scope === 'year' ? 'Your year' : `Sem ${s.scope}`,
+    big: s.scope === 'year' ? t('wrapped.yourYear') : tr.term(s.scope),
     lines: [
-      scopeName(s.scope),
+      scopeName(tr, s.scope),
       s.phase === 'before'
-        ? 'It hasn’t started yet. Here’s what’s coming.'
+        ? t('wrapped.before')
         : s.phase === 'during'
-          ? `${Math.round(s.fraction * 100)}% done. Here’s the whole picture.`
-          : 'It’s over. Here’s how it went.',
-      `${s.courses} ${s.courses === 1 ? 'course' : 'courses'} · ${s.weeks} weeks`,
+          ? t('wrapped.during', { p: Math.round(s.fraction * 100) })
+          : t('wrapped.after'),
+      `${t('common.courses', { n: s.courses })} · ${t('wrapped.weeks', { n: s.weeks })}`,
     ],
   });
 
   slides.push({
     key: 'hours',
-    kicker: will('You will spend', 'You spent'),
-    big: fmt(s.classHours),
-    unit: 'hours in class',
+    kicker: will('wrapped.hours'),
+    big: fmt(tr, s.classHours),
+    unit: t('wrapped.hours.unit', { n: s.classHours }),
     lines: [
-      `${fmt(s.sessions)} classes in total.`,
+      count('wrapped.sessions', s.sessions),
       s.classHours >= 24
-        ? `That’s ${(s.classHours / 24).toFixed(1)} full days without sleep — or ${(s.classHours / 12).toFixed(0)} flights from Tel Aviv to New York.`
-        : 'Barely a day. Suspiciously light.',
+        ? t('wrapped.sleepless', {
+            n: Math.round(s.classHours / 12),
+            days: fixed(tr, s.classHours / 24, 1),
+            flights: fixed(tr, s.classHours / 12, 0),
+          })
+        : t('wrapped.light'),
     ],
   });
 
   slides.push({
     key: 'alarms',
-    kicker: will('Your alarm will ring', 'Your alarm rang'),
-    big: fmt(s.earlyWakeups),
-    unit: 'times for a class before 9:00',
+    kicker: will('wrapped.alarm'),
+    big: fmt(tr, s.earlyWakeups),
+    unit: t('wrapped.alarm.unit', { n: s.earlyWakeups }),
     lines: [
-      s.earlyWakeups === 0 ? 'Zero early mornings. Who are you?' : 'The sun sees you more than your friends do.',
-      s.lateEvenings > 0
-        ? `And ${fmt(s.lateEvenings)} evenings ending after 18:00.`
-        : 'And not a single evening after 18:00.',
-      ...(s.fridays > 0 ? [`Plus ${fmt(s.fridays)} Fridays on campus. Everyone else is at the beach.`] : []),
+      s.earlyWakeups === 0 ? t('wrapped.alarm.none') : t('wrapped.alarm.some'),
+      s.lateEvenings > 0 ? count('wrapped.late', s.lateEvenings) : t('wrapped.lateNone'),
+      ...(s.fridays > 0 ? [count('wrapped.fridays', s.fridays)] : []),
     ],
   });
 
+  const km = s.walkMeters >= 1000;
+  const walkValue = km ? Number((s.walkMeters / 1000).toFixed(1)) : Math.round(s.walkMeters);
   slides.push({
     key: 'walk',
-    kicker: will('Between classes you will walk', 'Between classes you walked'),
-    big: s.walkMeters >= 1000 ? (s.walkMeters / 1000).toFixed(1) : fmt(s.walkMeters),
-    unit: s.walkMeters >= 1000 ? 'kilometres' : 'metres',
+    kicker: will('wrapped.walk'),
+    big: km ? fixed(tr, s.walkMeters / 1000, 1) : fmt(tr, s.walkMeters),
+    unit: t(km ? 'wrapped.km' : 'wrapped.m', { n: walkValue }),
     lines: [
-      `${fmt(stepsFor(s.walkMeters))} steps.`,
-      s.walkMeters > 0 ? `That’s ${funDistance(s.walkMeters)}.` : 'All your classes are in the same building. Efficient.',
+      count('wrapped.steps', stepsFor(s.walkMeters)),
+      s.walkMeters > 0 ? t('wrapped.fun', { fun: funText(tr, s.walkMeters) }) : t('wrapped.sameBuilding'),
     ],
   });
 
   slides.push({
     key: 'gaps',
-    kicker: will('You will wait', 'You waited'),
-    big: fmt(s.gapHours),
-    unit: 'hours in gaps between classes',
-    lines: [
-      s.gapHours === 0
-        ? 'Zero gaps. Back-to-back legend.'
-        : `Enough for ${fmt((s.gapHours * 60) / 20)} coffees. The library knows your name.`,
-    ],
+    kicker: will('wrapped.gaps'),
+    big: fmt(tr, s.gapHours),
+    unit: t('wrapped.gaps.unit', { n: s.gapHours }),
+    lines: [s.gapHours === 0 ? t('wrapped.gaps.none') : count('wrapped.gaps.coffee', (s.gapHours * 60) / 20)],
   });
 
   if (commuteMinutes > 0) {
     slides.push({
       key: 'commute',
-      kicker: will('On the road you will spend', 'On the road you spent'),
-      big: fmt(s.commuteHours),
-      unit: 'hours',
+      kicker: will('wrapped.road'),
+      big: fmt(tr, s.commuteHours),
+      unit: t('wrapped.road.unit', { n: s.commuteHours }),
       lines: [
-        `${fmt(s.campusDays)} days on campus, ${commuteMinutes} min each way.`,
-        s.commuteHours >= 10
-          ? `That’s ${fmt(s.commuteHours / 10)} audiobooks. Or one very long podcast.`
-          : 'Short and sweet.',
+        count('wrapped.road.days', s.campusDays, { m: commuteMinutes }),
+        s.commuteHours >= 10 ? count('wrapped.road.books', s.commuteHours / 10) : t('wrapped.road.short'),
       ],
     });
   }
@@ -133,25 +130,34 @@ function buildSlides(s: WrappedStats, commuteMinutes: number): Slide[] {
   if (s.hellDay) {
     slides.push({
       key: 'hell',
-      kicker: will('Your hell day', 'Your hell day was'),
-      big: DAY_FULL[s.hellDay.day],
+      kicker: will('wrapped.hell'),
+      big: tr.day(s.hellDay.day, 'long'),
       lines: [
-        `${s.hellDay.score} suffering points on its own${s.scope === 'year' ? ` (Semester ${s.hellDay.semester})` : ''}.`,
-        'Plan something nice for that evening.',
+        s.scope === 'year'
+          ? t('wrapped.hell.pointsYear', { n: s.hellDay.score, term: tr.term(s.hellDay.semester, 'long') })
+          : t('wrapped.hell.points', { n: s.hellDay.score }),
+        t('wrapped.hell.nice'),
       ],
     });
   }
 
-  slides.push({ key: 'final', kicker: 'Your suffering index', lines: [] });
+  slides.push({ key: 'final', kicker: t('wrapped.final'), lines: [] });
   return slides;
 }
 
 /** Картинка для сторис 1080×1920, рисуется в браузере. */
-async function renderStory(s: WrappedStats): Promise<Blob | null> {
+async function renderStory(tr: Translator, s: WrappedStats): Promise<Blob | null> {
+  const { t } = tr;
+  const named = titleText(tr, s.title);
+  // В Caveat нет иврита — для рукописных строк на иврите берём Rubik.
+  const handFamily = tr.lang === 'he' ? '"Rubik Variable", system-ui, sans-serif' : '"Caveat Variable", cursive';
   try {
+    // Текст-образец, чтобы подгрузились нужные подмножества шрифта (кириллица, иврит).
+    const sample = `BarSuffer ${named.title} ${named.blurb} ${t('wrapped.canvas.index')}`;
     await Promise.all([
-      document.fonts.load('700 120px "Caveat Variable"'),
-      document.fonts.load('800 80px "Rubik Variable"'),
+      document.fonts.load(`700 120px ${handFamily}`, sample),
+      document.fonts.load('800 80px "Rubik Variable"', sample),
+      document.fonts.load('400 38px "Rubik Variable"', sample),
     ]);
   } catch {
     /* шрифты не загрузились — нарисуем системными */
@@ -179,8 +185,11 @@ async function renderStory(s: WrappedStats): Promise<Blob | null> {
   ctx.arc(140, H - 420, 300, 0, Math.PI * 2);
   ctx.fill();
 
+  /** Латиница (логотип, цифры) — всегда Caveat; переводимые рукописные строки — handFamily. */
   const hand = (size: number) => `700 ${size}px "Caveat Variable", cursive`;
+  const handText = (size: number) => `700 ${size}px ${handFamily}`;
   const ui = (weight: number, size: number) => `${weight} ${size}px "Rubik Variable", system-ui, sans-serif`;
+  ctx.direction = tr.dir;
   ctx.textAlign = 'center';
   ctx.fillStyle = '#ffffff';
 
@@ -188,11 +197,11 @@ async function renderStory(s: WrappedStats): Promise<Blob | null> {
   ctx.fillText('BarSuffer Wrapped', W / 2, 200);
   ctx.font = ui(500, 44);
   ctx.fillStyle = '#c9c3ff';
-  ctx.fillText(scopeName(s.scope), W / 2, 280);
+  ctx.fillText(scopeName(tr, s.scope), W / 2, 280, W - 80);
 
   ctx.font = ui(600, 40);
   ctx.fillStyle = '#9097a6';
-  ctx.fillText('SUFFERING INDEX', W / 2, 430);
+  ctx.fillText(t('wrapped.canvas.index'), W / 2, 430);
   ctx.font = hand(400);
   ctx.fillStyle = s.score >= 70 ? '#ff5c5c' : s.score >= 40 ? '#f2b84b' : '#7fd17f';
   ctx.fillText(String(s.score), W / 2, 760);
@@ -200,18 +209,18 @@ async function renderStory(s: WrappedStats): Promise<Blob | null> {
   ctx.fillStyle = '#9097a6';
   ctx.fillText('/ 100', W / 2, 840);
 
-  ctx.font = hand(120);
+  ctx.font = tr.lang === 'he' ? handText(100) : handText(120);
   ctx.fillStyle = '#ffffff';
-  ctx.fillText(s.title.title, W / 2, 1000);
+  ctx.fillText(named.title, W / 2, 1000, W - 80);
   ctx.font = ui(400, 38);
   ctx.fillStyle = '#c4c8d2';
-  ctx.fillText(s.title.blurb, W / 2, 1070, W - 120);
+  ctx.fillText(named.blurb, W / 2, 1070, W - 120);
 
   const cells: [string, string][] = [
-    [fmt(s.classHours), 'hours in class'],
-    [fmt(s.earlyWakeups), 'alarms before 9'],
-    [formatDistance(s.walkMeters), 'walked on campus'],
-    [fmt(s.gapHours), 'hours in gaps'],
+    [fmt(tr, s.classHours), t('wrapped.hours.unit', { n: s.classHours })],
+    [fmt(tr, s.earlyWakeups), t('wrapped.grid.alarms', { n: s.earlyWakeups })],
+    [distance(tr, s.walkMeters), t('wrapped.canvas.walked')],
+    [fmt(tr, s.gapHours), t('wrapped.grid.gaps', { n: s.gapHours })],
   ];
   cells.forEach(([value, label], i) => {
     const x = i % 2 === 0 ? W * 0.27 : W * 0.73;
@@ -222,24 +231,27 @@ async function renderStory(s: WrappedStats): Promise<Blob | null> {
     ctx.fill();
     ctx.font = ui(800, 84);
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(value, x, y);
+    ctx.fillText(value, x, y, 420);
     ctx.font = ui(500, 34);
     ctx.fillStyle = '#9097a6';
-    ctx.fillText(label, x, y + 52);
+    ctx.fillText(label, x, y + 52, 420);
   });
 
   if (s.hellDay) {
     ctx.font = ui(600, 42);
     ctx.fillStyle = '#ffb08a';
-    ctx.fillText(`🔥 Hell day: ${DAY_FULL[s.hellDay.day]}`, W / 2, 1730);
+    ctx.fillText(t('wrapped.canvas.hell', { day: tr.day(s.hellDay.day, 'long') }), W / 2, 1730, W - 80);
   }
 
   ctx.font = ui(600, 34);
   ctx.fillStyle = '#c9c3ff';
+  // Адрес сайта — латиница, всегда слева направо.
+  ctx.direction = 'ltr';
   ctx.fillText(SITE, W / 2, H - 110, W - 80);
+  ctx.direction = tr.dir;
   ctx.font = ui(500, 28);
   ctx.fillStyle = '#7c8394';
-  ctx.fillText('Unofficial · not affiliated with Bar-Ilan University', W / 2, H - 62, W - 80);
+  ctx.fillText(t('wrapped.canvas.footer'), W / 2, H - 62, W - 80);
 
   return new Promise((resolve) => canvas.toBlob((b) => resolve(b), 'image/png'));
 }
@@ -249,12 +261,15 @@ export function Wrapped({ plan, courses, commuteMinutes, gate, now, initialScope
   const [index, setIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const tr = useI18n();
+  const { t } = tr;
 
   const stats = useMemo(
     () => computeWrapped(plan, courses, scope, { commuteMinutes, gate: gate || undefined }, now),
     [plan, courses, scope, commuteMinutes, gate, now],
   );
-  const slides = useMemo(() => buildSlides(stats, commuteMinutes), [stats, commuteMinutes]);
+  const slides = useMemo(() => buildSlides(tr, stats, commuteMinutes), [tr, stats, commuteMinutes]);
+  const named = titleText(tr, stats.title);
   const slide = slides[Math.min(index, slides.length - 1)]!;
   const last = index >= slides.length - 1;
 
@@ -267,11 +282,11 @@ export function Wrapped({ plan, courses, commuteMinutes, gate, now, initialScope
   const save = async (share: boolean) => {
     setBusy(true);
     try {
-      const blob = await renderStory(stats);
+      const blob = await renderStory(tr, stats);
       if (!blob) return;
       const file = new File([blob], `barsuffer-wrapped-${scope}.png`, { type: 'image/png' });
       if (share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'My BarSuffer Wrapped' });
+        await navigator.share({ files: [file], title: t('wrapped.shareTitle') });
         return;
       }
       const url = URL.createObjectURL(blob);
@@ -296,10 +311,13 @@ export function Wrapped({ plan, courses, commuteMinutes, gate, now, initialScope
       aria-label="BarSuffer Wrapped"
       tabIndex={-1}
       onKeyDown={(e) => {
-        if (e.key === 'ArrowRight' || e.key === ' ') {
+        // В иврите «вперёд» — влево.
+        const forward = tr.dir === 'rtl' ? 'ArrowLeft' : 'ArrowRight';
+        const back = tr.dir === 'rtl' ? 'ArrowRight' : 'ArrowLeft';
+        if (e.key === forward || e.key === ' ') {
           e.preventDefault();
           next();
-        } else if (e.key === 'ArrowLeft') {
+        } else if (e.key === back) {
           e.preventDefault();
           prev();
         } else if (e.key === 'Escape') {
@@ -316,21 +334,21 @@ export function Wrapped({ plan, courses, commuteMinutes, gate, now, initialScope
             ))}
           </div>
           <div className="story-controls">
-            <div className="sem-tabs" role="tablist" aria-label="Wrapped period">
+            <div className="sem-tabs" role="tablist" aria-label={t('wrapped.periodTabs')}>
               {SCOPES.map((s) => (
                 <button
-                  key={s.id}
+                  key={s}
                   type="button"
                   role="tab"
-                  aria-selected={scope === s.id}
-                  className={scope === s.id ? 'on' : ''}
-                  onClick={() => setScope(s.id)}
+                  aria-selected={scope === s}
+                  className={scope === s ? 'on' : ''}
+                  onClick={() => setScope(s)}
                 >
-                  {s.label}
+                  {scopeLabel(tr, s)}
                 </button>
               ))}
             </div>
-            <button type="button" className="icon-btn" onClick={onClose} aria-label="Close Wrapped">
+            <button type="button" className="icon-btn" onClick={onClose} aria-label={t('wrapped.close')}>
               ×
             </button>
           </div>
@@ -339,8 +357,8 @@ export function Wrapped({ plan, courses, commuteMinutes, gate, now, initialScope
         {stats.empty ? (
           <div className="story-body">
             <p className="story-kicker">BarSuffer Wrapped</p>
-            <p className="story-big">Nothing yet</p>
-            <p className="story-line">Add some courses to {scopeName(scope)} first, then come back.</p>
+            <p className="story-big">{t('wrapped.nothing')}</p>
+            <p className="story-line">{t('wrapped.empty', { scope: scopeName(tr, scope) })}</p>
           </div>
         ) : slide.key === 'final' ? (
           <div className="story-body">
@@ -349,20 +367,20 @@ export function Wrapped({ plan, courses, commuteMinutes, gate, now, initialScope
               {stats.score}
               <small>/100</small>
             </p>
-            <p className="story-title">{stats.title.title}</p>
-            <p className="story-line">{stats.title.blurb}</p>
+            <p className="story-title">{named.title}</p>
+            <p className="story-line">{named.blurb}</p>
             <div className="story-grid">
-              <span><b>{fmt(stats.classHours)}</b>hours in class</span>
-              <span><b>{fmt(stats.earlyWakeups)}</b>alarms before 9</span>
-              <span><b>{formatDistance(stats.walkMeters)}</b>walked</span>
-              <span><b>{fmt(stats.gapHours)}</b>hours in gaps</span>
+              <span><b>{fmt(tr, stats.classHours)}</b>{t('wrapped.hours.unit', { n: stats.classHours })}</span>
+              <span><b>{fmt(tr, stats.earlyWakeups)}</b>{t('wrapped.grid.alarms', { n: stats.earlyWakeups })}</span>
+              <span><b>{distance(tr, stats.walkMeters)}</b>{t('wrapped.grid.walked')}</span>
+              <span><b>{fmt(tr, stats.gapHours)}</b>{t('wrapped.grid.gaps', { n: stats.gapHours })}</span>
             </div>
             <div className="story-actions">
               <button type="button" className="btn" disabled={busy} onClick={() => void save(true)}>
-                Share story
+                {t('wrapped.share')}
               </button>
               <button type="button" className="btn btn-quiet" disabled={busy} onClick={() => void save(false)}>
-                Save image
+                {t('wrapped.save')}
               </button>
             </div>
           </div>
@@ -386,19 +404,19 @@ export function Wrapped({ plan, courses, commuteMinutes, gate, now, initialScope
               className="story-tap prev"
               onClick={prev}
               disabled={index === 0}
-              aria-label="Previous slide"
+              aria-label={t('wrapped.prev')}
             />
             <button
               type="button"
               className="story-tap next"
               onClick={next}
               disabled={last}
-              aria-label="Next slide"
+              aria-label={t('wrapped.next')}
             />
           </>
         )}
         <p className="story-foot">
-          Estimates from your planned schedule · unofficial · {index + 1}/{slides.length}
+          {t('wrapped.foot', { i: index + 1, total: slides.length })}
         </p>
       </div>
     </div>

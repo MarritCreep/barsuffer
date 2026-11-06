@@ -1,0 +1,318 @@
+﻿import type { Dict } from '../core';
+
+/**
+ * Area: wrapped — сторис BarSuffer Wrapped и картинка для них.
+ * «BarSuffer» и «Wrapped» не переводятся. В формах множественного числа
+ * {count} — число строкой в формате языка, а n — то же число для выбора формы.
+ */
+const en = {
+  'wrapped.year': 'Year',
+  'wrapped.periodTabs': 'Wrapped period',
+  'wrapped.close': 'Close Wrapped',
+  'wrapped.prev': 'Previous slide',
+  'wrapped.next': 'Next slide',
+  'wrapped.scope.A': 'Semester A, 2026–27',
+  'wrapped.scope.B': 'Semester B, 2026–27',
+  'wrapped.scope.year': 'the 2026–27 year',
+  'wrapped.yourYear': 'Your year',
+  'wrapped.before': 'It hasn’t started yet. Here’s what’s coming.',
+  'wrapped.during': '{p}% done. Here’s the whole picture.',
+  'wrapped.after': 'It’s over. Here’s how it went.',
+  'wrapped.weeks': { other: '{n} weeks' },
+
+  'wrapped.hours.future': 'You will spend',
+  'wrapped.hours.past': 'You spent',
+  'wrapped.hours.unit': { other: 'hours in class' },
+  'wrapped.sessions': { other: '{count} classes in total.' },
+  /** n — число перелётов. */
+  'wrapped.sleepless': {
+    other: 'That’s {days} full days without sleep — or {flights} flights from Tel Aviv to New York.',
+  },
+  'wrapped.light': 'Barely a day. Suspiciously light.',
+
+  'wrapped.alarm.future': 'Your alarm will ring',
+  'wrapped.alarm.past': 'Your alarm rang',
+  'wrapped.alarm.unit': { other: 'times for a class before 9:00' },
+  'wrapped.alarm.none': 'Zero early mornings. Who are you?',
+  'wrapped.alarm.some': 'The sun sees you more than your friends do.',
+  'wrapped.late': { other: 'And {count} evenings ending after 18:00.' },
+  'wrapped.lateNone': 'And not a single evening after 18:00.',
+  'wrapped.fridays': { other: 'Plus {count} Fridays on campus. Everyone else is at the beach.' },
+
+  'wrapped.walk.future': 'Between classes you will walk',
+  'wrapped.walk.past': 'Between classes you walked',
+  'wrapped.km': { other: 'kilometres' },
+  'wrapped.m': { other: 'metres' },
+  'wrapped.steps': { other: '{count} steps.' },
+  'wrapped.fun': 'That’s {fun}.',
+  'wrapped.sameBuilding': 'All your classes are in the same building. Efficient.',
+
+  'wrapped.gaps.future': 'You will wait',
+  'wrapped.gaps.past': 'You waited',
+  'wrapped.gaps.unit': { other: 'hours in gaps between classes' },
+  'wrapped.gaps.none': 'Zero gaps. Back-to-back legend.',
+  'wrapped.gaps.coffee': { other: 'Enough for {count} coffees. The library knows your name.' },
+
+  'wrapped.road.future': 'On the road you will spend',
+  'wrapped.road.past': 'On the road you spent',
+  'wrapped.road.unit': { other: 'hours' },
+  'wrapped.road.days': { other: '{count} days on campus, {m} min each way.' },
+  'wrapped.road.books': { other: 'That’s {count} audiobooks. Or one very long podcast.' },
+  'wrapped.road.short': 'Short and sweet.',
+
+  'wrapped.hell.future': 'Your hell day',
+  'wrapped.hell.past': 'Your hell day was',
+  'wrapped.hell.points': { other: '{n} suffering points on its own.' },
+  'wrapped.hell.pointsYear': { other: '{n} suffering points on its own ({term}).' },
+  'wrapped.hell.nice': 'Plan something nice for that evening.',
+
+  'wrapped.final': 'Your suffering index',
+  'wrapped.grid.alarms': { other: 'alarms before 9' },
+  'wrapped.grid.walked': 'walked',
+  'wrapped.grid.gaps': { other: 'hours in gaps' },
+  'wrapped.share': 'Share story',
+  'wrapped.save': 'Save image',
+  'wrapped.shareTitle': 'My BarSuffer Wrapped',
+  'wrapped.nothing': 'Nothing yet',
+  'wrapped.empty': 'Add some courses to {scope} first, then come back.',
+  'wrapped.foot': 'Estimates from your planned schedule · unofficial · {i}/{total}',
+
+  'wrapped.canvas.index': 'SUFFERING INDEX',
+  'wrapped.canvas.walked': 'walked on campus',
+  'wrapped.canvas.hell': '🔥 Hell day: {day}',
+  'wrapped.canvas.footer': 'Unofficial · not affiliated with Bar-Ilan University',
+};
+
+const ru: Dict<typeof en> = {
+  'wrapped.year': 'Год',
+  'wrapped.periodTabs': 'Период Wrapped',
+  'wrapped.close': 'Закрыть Wrapped',
+  'wrapped.prev': 'Предыдущий слайд',
+  'wrapped.next': 'Следующий слайд',
+  'wrapped.scope.A': 'Семестр A, 2026–27',
+  'wrapped.scope.B': 'Семестр B, 2026–27',
+  'wrapped.scope.year': 'учебный год 2026–27',
+  'wrapped.yourYear': 'Ваш год',
+  'wrapped.before': 'Ещё не началось. Вот что вас ждёт.',
+  'wrapped.during': 'Позади {p}%. Вот вся картина целиком.',
+  'wrapped.after': 'Всё позади. Вот как это было.',
+  'wrapped.weeks': { one: '{n} неделя', few: '{n} недели', many: '{n} недель', other: '{n} недели' },
+
+  'wrapped.hours.future': 'Вы проведёте',
+  'wrapped.hours.past': 'Вы провели',
+  'wrapped.hours.unit': { one: 'час на парах', few: 'часа на парах', many: 'часов на парах', other: 'часа на парах' },
+  'wrapped.sessions': {
+    one: 'Всего {count} пара.',
+    few: 'Всего {count} пары.',
+    many: 'Всего {count} пар.',
+    other: 'Всего {count} пары.',
+  },
+  'wrapped.sleepless': {
+    one: 'Это {days} суток без сна — или {flights} перелёт Тель-Авив — Нью-Йорк.',
+    few: 'Это {days} суток без сна — или {flights} перелёта Тель-Авив — Нью-Йорк.',
+    many: 'Это {days} суток без сна — или {flights} перелётов Тель-Авив — Нью-Йорк.',
+    other: 'Это {days} суток без сна — или {flights} перелёта Тель-Авив — Нью-Йорк.',
+  },
+  'wrapped.light': 'Меньше суток. Подозрительно легко.',
+
+  'wrapped.alarm.future': 'Будильник прозвенит',
+  'wrapped.alarm.past': 'Будильник звенел',
+  'wrapped.alarm.unit': {
+    one: 'раз ради пары до 9:00',
+    few: 'раза ради пары до 9:00',
+    many: 'раз ради пары до 9:00',
+    other: 'раза ради пары до 9:00',
+  },
+  'wrapped.alarm.none': 'Ни одного раннего утра. Вы вообще кто?',
+  'wrapped.alarm.some': 'Солнце видит вас чаще, чем друзья.',
+  'wrapped.late': {
+    one: 'И {count} вечер, который кончается после 18:00.',
+    few: 'И {count} вечера, которые кончаются после 18:00.',
+    many: 'И {count} вечеров, которые кончаются после 18:00.',
+    other: 'И {count} вечера, которые кончаются после 18:00.',
+  },
+  'wrapped.lateNone': 'И ни одного вечера после 18:00.',
+  'wrapped.fridays': {
+    one: 'А ещё {count} пятница в кампусе. Все нормальные люди на пляже.',
+    few: 'А ещё {count} пятницы в кампусе. Все нормальные люди на пляже.',
+    many: 'А ещё {count} пятниц в кампусе. Все нормальные люди на пляже.',
+    other: 'А ещё {count} пятницы в кампусе. Все нормальные люди на пляже.',
+  },
+
+  'wrapped.walk.future': 'Между парами вы пройдёте',
+  'wrapped.walk.past': 'Между парами вы прошли',
+  'wrapped.km': { one: 'километр', few: 'километра', many: 'километров', other: 'километра' },
+  'wrapped.m': { one: 'метр', few: 'метра', many: 'метров', other: 'метра' },
+  'wrapped.steps': { one: '{count} шаг.', few: '{count} шага.', many: '{count} шагов.', other: '{count} шага.' },
+  'wrapped.fun': 'Это {fun}.',
+  'wrapped.sameBuilding': 'Все пары в одном корпусе. Эффективно.',
+
+  'wrapped.gaps.future': 'Вы прождёте',
+  'wrapped.gaps.past': 'Вы прождали',
+  'wrapped.gaps.unit': {
+    one: 'час в окнах между парами',
+    few: 'часа в окнах между парами',
+    many: 'часов в окнах между парами',
+    other: 'часа в окнах между парами',
+  },
+  'wrapped.gaps.none': 'Ни одного окна. Легенда пар встык.',
+  'wrapped.gaps.coffee': {
+    one: 'Хватит на {count} чашку кофе. В библиотеке вас знают по имени.',
+    few: 'Хватит на {count} чашки кофе. В библиотеке вас знают по имени.',
+    many: 'Хватит на {count} чашек кофе. В библиотеке вас знают по имени.',
+    other: 'Хватит на {count} чашки кофе. В библиотеке вас знают по имени.',
+  },
+
+  'wrapped.road.future': 'В дороге вы проведёте',
+  'wrapped.road.past': 'В дороге вы провели',
+  'wrapped.road.unit': { one: 'час', few: 'часа', many: 'часов', other: 'часа' },
+  'wrapped.road.days': {
+    one: '{count} день в кампусе, {m} мин в одну сторону.',
+    few: '{count} дня в кампусе, {m} мин в одну сторону.',
+    many: '{count} дней в кампусе, {m} мин в одну сторону.',
+    other: '{count} дня в кампусе, {m} мин в одну сторону.',
+  },
+  'wrapped.road.books': {
+    one: 'Это {count} аудиокнига. Или один очень длинный подкаст.',
+    few: 'Это {count} аудиокниги. Или один очень длинный подкаст.',
+    many: 'Это {count} аудиокниг. Или один очень длинный подкаст.',
+    other: 'Это {count} аудиокниги. Или один очень длинный подкаст.',
+  },
+  'wrapped.road.short': 'Коротко и не больно.',
+
+  'wrapped.hell.future': 'Ваш адский день',
+  'wrapped.hell.past': 'Ваш адский день был',
+  'wrapped.hell.points': {
+    one: 'Целых {n} балл страдания за один день.',
+    few: 'Целых {n} балла страдания за один день.',
+    many: 'Целых {n} баллов страдания за один день.',
+    other: 'Целых {n} балла страдания за один день.',
+  },
+  'wrapped.hell.pointsYear': {
+    one: 'Целых {n} балл страдания за один день ({term}).',
+    few: 'Целых {n} балла страдания за один день ({term}).',
+    many: 'Целых {n} баллов страдания за один день ({term}).',
+    other: 'Целых {n} балла страдания за один день ({term}).',
+  },
+  'wrapped.hell.nice': 'Запланируйте на этот вечер что-нибудь приятное.',
+
+  'wrapped.final': 'Ваш индекс страдания',
+  'wrapped.grid.alarms': {
+    one: 'будильник до 9',
+    few: 'будильника до 9',
+    many: 'будильников до 9',
+    other: 'будильника до 9',
+  },
+  'wrapped.grid.walked': 'пешком',
+  'wrapped.grid.gaps': { one: 'час в окнах', few: 'часа в окнах', many: 'часов в окнах', other: 'часа в окнах' },
+  'wrapped.share': 'Поделиться сторис',
+  'wrapped.save': 'Сохранить картинку',
+  'wrapped.shareTitle': 'Мой BarSuffer Wrapped',
+  'wrapped.nothing': 'Пока пусто',
+  'wrapped.empty': 'Сначала добавьте курсы ({scope}), потом возвращайтесь.',
+  'wrapped.foot': 'Оценка по вашему плану · неофициально · {i}/{total}',
+
+  'wrapped.canvas.index': 'ИНДЕКС СТРАДАНИЯ',
+  'wrapped.canvas.walked': 'пешком по кампусу',
+  'wrapped.canvas.hell': '🔥 Адский день: {day}',
+  'wrapped.canvas.footer': 'Неофициально · не связано с Университетом Бар-Илан',
+};
+
+const he: Dict<typeof en> = {
+  'wrapped.year': 'שנה',
+  'wrapped.periodTabs': 'תקופת ה־Wrapped',
+  'wrapped.close': 'סגירת Wrapped',
+  'wrapped.prev': 'השקופית הקודמת',
+  'wrapped.next': 'השקופית הבאה',
+  'wrapped.scope.A': 'סמסטר א׳ תשפ״ז',
+  'wrapped.scope.B': 'סמסטר ב׳ תשפ״ז',
+  'wrapped.scope.year': 'שנת תשפ״ז',
+  'wrapped.yourYear': 'השנה שלכם',
+  'wrapped.before': 'זה עוד לא התחיל. הנה מה שמחכה לכם.',
+  'wrapped.during': '{p}% כבר מאחוריכם. הנה התמונה המלאה.',
+  'wrapped.after': 'נגמר. ככה זה היה.',
+  'wrapped.weeks': { one: 'שבוע אחד', two: 'שבועיים', other: '{n} שבועות' },
+
+  'wrapped.hours.future': 'אתם הולכים לבלות',
+  'wrapped.hours.past': 'ביליתם',
+  'wrapped.hours.unit': { one: 'שעה בשיעורים', other: 'שעות בשיעורים' },
+  'wrapped.sessions': { one: 'שיעור אחד בסך הכול.', other: '{count} שיעורים בסך הכול.' },
+  'wrapped.sleepless': {
+    one: 'זה {days} ימים שלמים בלי לישון — או טיסה אחת מתל אביב לניו יורק.',
+    two: 'זה {days} ימים שלמים בלי לישון — או שתי טיסות מתל אביב לניו יורק.',
+    other: 'זה {days} ימים שלמים בלי לישון — או {flights} טיסות מתל אביב לניו יורק.',
+  },
+  'wrapped.light': 'בקושי יום. קליל באופן חשוד.',
+
+  'wrapped.alarm.future': 'השעון המעורר יצלצל',
+  'wrapped.alarm.past': 'השעון המעורר צלצל',
+  'wrapped.alarm.unit': { one: 'פעם בשביל שיעור לפני 9:00', other: 'פעמים בשביל שיעור לפני 9:00' },
+  'wrapped.alarm.none': 'אפס בקרים מוקדמים. מי אתם בכלל?',
+  'wrapped.alarm.some': 'השמש רואה אתכם יותר מהחברים שלכם.',
+  'wrapped.late': {
+    one: 'ועוד ערב אחד שנגמר אחרי 18:00.',
+    other: 'ועוד {count} ערבים שנגמרים אחרי 18:00.',
+  },
+  'wrapped.lateNone': 'ואף לא ערב אחד אחרי 18:00.',
+  'wrapped.fridays': {
+    one: 'ועוד יום שישי אחד בקמפוס. כל השאר בים.',
+    other: 'ועוד {count} ימי שישי בקמפוס. כל השאר בים.',
+  },
+
+  'wrapped.walk.future': 'בין השיעורים תלכו',
+  'wrapped.walk.past': 'בין השיעורים הלכתם',
+  'wrapped.km': { one: 'קילומטר', other: 'קילומטרים' },
+  'wrapped.m': { one: 'מטר', other: 'מטרים' },
+  'wrapped.steps': { one: 'צעד אחד.', other: '{count} צעדים.' },
+  'wrapped.fun': 'זה {fun}.',
+  'wrapped.sameBuilding': 'כל השיעורים באותו בניין. יעיל.',
+
+  'wrapped.gaps.future': 'אתם הולכים לחכות',
+  'wrapped.gaps.past': 'חיכיתם',
+  'wrapped.gaps.unit': { one: 'שעה בחלונות בין שיעורים', other: 'שעות בחלונות בין שיעורים' },
+  'wrapped.gaps.none': 'אפס חלונות. אלופי הרצף.',
+  'wrapped.gaps.coffee': {
+    one: 'מספיק לקפה אחד. בספרייה כבר מכירים אתכם בשם.',
+    other: 'מספיק ל־{count} כוסות קפה. בספרייה כבר מכירים אתכם בשם.',
+  },
+
+  'wrapped.road.future': 'בדרכים אתם הולכים לבלות',
+  'wrapped.road.past': 'בדרכים ביליתם',
+  'wrapped.road.unit': { one: 'שעה', other: 'שעות' },
+  'wrapped.road.days': {
+    one: 'יום אחד בקמפוס, {m} דק׳ לכל כיוון.',
+    other: '{count} ימים בקמפוס, {m} דק׳ לכל כיוון.',
+  },
+  'wrapped.road.books': {
+    one: 'זה ספר שמע אחד. או פודקאסט אחד ממש ארוך.',
+    other: 'זה {count} ספרי שמע. או פודקאסט אחד ממש ארוך.',
+  },
+  'wrapped.road.short': 'קצר ולעניין.',
+
+  'wrapped.hell.future': 'יום הגיהנום שלכם',
+  'wrapped.hell.past': 'יום הגיהנום שלכם היה',
+  'wrapped.hell.points': { one: 'נקודת סבל אחת רק ממנו.', other: '{n} נקודות סבל רק ממנו.' },
+  'wrapped.hell.pointsYear': {
+    one: 'נקודת סבל אחת רק ממנו ({term}).',
+    other: '{n} נקודות סבל רק ממנו ({term}).',
+  },
+  'wrapped.hell.nice': 'תתכננו משהו נחמד לערב הזה.',
+
+  'wrapped.final': 'מדד הסבל שלכם',
+  'wrapped.grid.alarms': { one: 'השכמה לפני 9', other: 'השכמות לפני 9' },
+  'wrapped.grid.walked': 'הליכה',
+  'wrapped.grid.gaps': { one: 'שעה בחלונות', other: 'שעות בחלונות' },
+  'wrapped.share': 'שיתוף בסטורי',
+  'wrapped.save': 'שמירת התמונה',
+  'wrapped.shareTitle': 'ה־BarSuffer Wrapped שלי',
+  'wrapped.nothing': 'עדיין כלום',
+  'wrapped.empty': 'קודם תוסיפו קורסים ל{scope}, ואז תחזרו.',
+  'wrapped.foot': 'הערכות לפי המערכת שתכננתם · לא רשמי · {i}/{total}',
+
+  'wrapped.canvas.index': 'מדד הסבל',
+  'wrapped.canvas.walked': 'הליכה בקמפוס',
+  'wrapped.canvas.hell': '🔥 יום הגיהנום: {day}',
+  'wrapped.canvas.footer': 'לא רשמי · לא קשור לאוניברסיטת בר־אילן',
+};
+
+export default { en, ru, he };

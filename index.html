@@ -10,6 +10,12 @@
       try {
         var t = localStorage.getItem('barsuffer:theme');
         if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+        // Язык и направление тоже до отрисовки: иврит сразу справа налево.
+        var l = localStorage.getItem('barsuffer:lang:v1');
+        if (l === 'ru' || l === 'he') {
+          document.documentElement.lang = l;
+          if (l === 'he') document.documentElement.dir = 'rtl';
+        }
       } catch (e) {}
     </script>
   </head>

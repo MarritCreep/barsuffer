@@ -49,10 +49,22 @@ export interface ImportedUntimed {
  */
 export type ImportScope = Semester | 'year' | 'unknown';
 
+/**
+ * Предупреждение разбора: код и параметры — для перевода в интерфейсе (ключ `import.warn.<code>`),
+ * `message` — тот же текст по-английски (для тестов и отладки).
+ */
+export type InbarWarningCode = 'noHeader' | 'unreadable' | 'noTime' | 'noClasses';
+
+export interface InbarWarning {
+  code: InbarWarningCode;
+  params?: Record<string, string>;
+  message: string;
+}
+
 export interface InbarImport {
   meetings: ImportedMeeting[];
   untimed: ImportedUntimed[];
-  warnings: string[];
+  warnings: InbarWarning[];
   scope: ImportScope;
 }
 
@@ -118,7 +130,7 @@ interface Column {
 }
 
 export function parseInbarPdf(pages: readonly PdfPage[], options: ParseOptions = {}): InbarImport {
-  const warnings: string[] = [];
+  const warnings: InbarWarning[] = [];
   const all = pages.flatMap((page, p) =>
     page.items
       .filter((it) => it.str.trim() && !isNoise(it, page))
@@ -203,7 +215,10 @@ export function parseInbarPdf(pages: readonly PdfPage[], options: ParseOptions =
   }
 
   if (columns.length === 0) {
-    warnings.push('Could not find the weekday header. Export the schedule from Inbar in English (“All Semesters”).');
+    warnings.push({
+      code: 'noHeader',
+      message: 'Could not find the weekday header. Export the schedule from Inbar in English (“All Semesters”).',
+    });
   }
 
   // Разбор каждой колонки: жирный заголовок, затем время или «Continued», затем детали.
@@ -224,14 +239,16 @@ export function parseInbarPdf(pages: readonly PdfPage[], options: ParseOptions =
 
       const t = TITLE_RE.exec(cleanName(title.join(' ')));
       if (!t) {
-        warnings.push(`Skipped an unreadable block: “${cleanName(title.join(' ')).slice(0, 60)}”`);
+        const text = cleanName(title.join(' ')).slice(0, 60);
+        warnings.push({ code: 'unreadable', params: { text }, message: `Skipped an unreadable block: “${text}”` });
         continue;
       }
       const first = details[0] ?? '';
       if (CONTINUED_RE.test(first)) continue;
       const time = TIME_RE.exec(first);
       if (!time) {
-        warnings.push(`No time found for ${t[2]}-${t[3]}.`);
+        const id = `${t[2]}-${t[3]}`;
+        warnings.push({ code: 'noTime', params: { id }, message: `No time found for ${id}.` });
         continue;
       }
       const rest = details.slice(1);
@@ -278,7 +295,7 @@ export function parseInbarPdf(pages: readonly PdfPage[], options: ParseOptions =
   }
 
   if (meetings.length === 0 && untimed.length === 0 && warnings.length === 0) {
-    warnings.push('No classes found in this PDF.');
+    warnings.push({ code: 'noClasses', message: 'No classes found in this PDF.' });
   }
 
   let scope: ImportScope;
@@ -307,7 +324,9 @@ export interface ImportMismatch {
   courseId: string;
   group: string;
   name: string;
+  /** Время по Инбару по-английски («Tue 08:00–10:00»); интерфейс собирает текст из `times`. */
   inbar: string;
+  times: { day: Day; start: number; end: number }[];
 }
 
 export interface ImportPlan {
@@ -365,6 +384,7 @@ export function buildImport(data: InbarImport, catalog: ReadonlyMap<string, Cour
         group: g.group,
         name: course.name,
         inbar: g.meetings.map((m) => `${DAY_SHORT[m.day]} ${formatMinutes(m.start)}–${formatMinutes(m.end)}`).join(', '),
+        times: g.meetings.map((m) => ({ day: m.day, start: m.start, end: m.end })),
       });
     }
   }

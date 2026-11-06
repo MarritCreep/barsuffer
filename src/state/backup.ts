@@ -27,9 +27,21 @@ export function backupFileName(now = new Date()): string {
   return `barsuffer-${now.toISOString().slice(0, 10)}.json`;
 }
 
+/** Почему файл не открылся. Интерфейс переводит код ключом `backup.error.<code>`. */
+export type BackupErrorCode = 'notJson' | 'notOurs' | 'newer' | 'damaged';
+
 export type ReadBackupResult =
   | { ok: true; plan: Plan; settings: Settings; dropped: string[] }
-  | { ok: false; error: string };
+  | { ok: false; code: BackupErrorCode; error: string };
+
+const BACKUP_ERRORS: Record<BackupErrorCode, string> = {
+  notJson: 'This is not a BarSuffer file (not valid JSON).',
+  notOurs: 'This is not a BarSuffer file.',
+  newer: 'This file was made by a newer version of BarSuffer.',
+  damaged: 'The schedule in this file is damaged.',
+};
+
+const fail = (code: BackupErrorCode): ReadBackupResult => ({ ok: false, code, error: BACKUP_ERRORS[code] });
 
 /** Читает файл резервной копии; курсы, которых нет в каталоге, отбрасываются и перечисляются. */
 export function readBackup(text: string, courses: ReadonlyMap<string, Course>): ReadBackupResult {
@@ -37,14 +49,12 @@ export function readBackup(text: string, courses: ReadonlyMap<string, Course>): 
   try {
     data = JSON.parse(text);
   } catch {
-    return { ok: false, error: 'This is not a BarSuffer file (not valid JSON).' };
+    return fail('notJson');
   }
   const b = data as Partial<Backup> | null;
-  if (!b || b.app !== BACKUP_APP) return { ok: false, error: 'This is not a BarSuffer file.' };
-  if (typeof b.version !== 'number' || b.version > BACKUP_VERSION) {
-    return { ok: false, error: 'This file was made by a newer version of BarSuffer.' };
-  }
-  if (!isPlan(b.plan)) return { ok: false, error: 'The schedule in this file is damaged.' };
+  if (!b || b.app !== BACKUP_APP) return fail('notOurs');
+  if (typeof b.version !== 'number' || b.version > BACKUP_VERSION) return fail('newer');
+  if (!isPlan(b.plan)) return fail('damaged');
 
   const dropped = b.plan.courses.filter((c) => !courses.has(c.courseId)).map((c) => c.courseId);
   const plan: Plan = { ...b.plan, courses: b.plan.courses.filter((c) => courses.has(c.courseId)) };

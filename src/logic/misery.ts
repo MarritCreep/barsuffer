@@ -141,7 +141,10 @@ export interface MiseryTitle {
   blurb: string;
 }
 
-/** Десять шуточных титулов. Выбор — по первому подходящему правилу. */
+/**
+ * Десять шуточных титулов. Выбор — по первому подходящему правилу.
+ * title/blurb здесь — английский оригинал; интерфейс берёт перевод по id (src/i18n/areas/week.ts).
+ */
 export const TITLES = {
   ghost: { id: 'ghost', title: 'Ghost Student', blurb: 'No classes this semester. Are you even enrolled?' },
   professional: { id: 'professional', title: 'Professional Sufferer', blurb: 'This schedule is a lifestyle, not a timetable.' },
@@ -154,6 +157,9 @@ export const TITLES = {
   nightOwl: { id: 'nightOwl', title: 'Night Owl Scholar', blurb: 'Leaves campus when the stars come out.' },
   balanced: { id: 'balanced', title: 'Well-Rounded Sufferer', blurb: 'A little bit of every kind of pain.' },
 } satisfies Record<string, MiseryTitle>;
+
+/** Id титула; тексты на других языках — ключи `title.<id>` и `title.<id>.blurb`. */
+export type TitleId = keyof typeof TITLES;
 
 /** Порог, начиная с которого категория «главная» и даёт свой титул. */
 const DOMINANT_MIN_POINTS = 10;

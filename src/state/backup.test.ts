@@ -30,6 +30,7 @@ describe('backup file', () => {
     expect(readBackup(JSON.stringify({ app: 'other' }), courseMap)).toMatchObject({ ok: false });
     expect(readBackup(JSON.stringify({ app: 'barsuffer', version: 99, plan }), courseMap)).toMatchObject({
       ok: false,
+      code: 'newer',
       error: expect.stringMatching(/newer version/),
     });
     expect(readBackup(JSON.stringify({ app: 'barsuffer', version: 1, plan: { v: 1 } }), courseMap)).toMatchObject({

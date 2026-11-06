@@ -1,0 +1,439 @@
+/* Прогресс степени. Токены — из styles.css; только логические свойства (RTL). */
+
+.modal.dg-modal {
+  max-width: 760px;
+}
+
+.dg-tabbar {
+  padding-block: 10px 0;
+  padding-inline: 14px;
+}
+
+.dg-tabbar .sem-tabs {
+  margin-bottom: 0;
+}
+
+.dg-body h3 {
+  margin: 0;
+}
+
+.dg-card {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.dg-card legend {
+  padding-inline: 4px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.dg-grid {
+  display: grid;
+  gap: 10px;
+}
+
+@media (min-width: 620px) {
+  .dg-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ---------- Общий прогресс ---------- */
+
+.dg-total-head,
+.dg-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dg-pct {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.dg-total-sum {
+  font-size: 15px;
+}
+
+.dg-total-sum strong {
+  font-size: 22px;
+}
+
+.dg-bar {
+  display: flex;
+  block-size: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--line);
+  border: 1px solid var(--border);
+}
+
+.dg-bar-big {
+  block-size: 18px;
+}
+
+.dg-bar-done,
+.dg-bar-now {
+  display: block;
+  block-size: 100%;
+  transition: inline-size 0.3s ease;
+}
+
+.dg-bar-done {
+  background: var(--accent);
+}
+
+.dg-bar-now {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--accent) 75%, transparent) 0 6px,
+    color-mix(in srgb, var(--accent) 30%, transparent) 6px 12px
+  );
+}
+
+.dg-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  color: var(--muted);
+}
+
+.dg-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dg-key-done::before,
+.dg-key-now::before {
+  content: '';
+  inline-size: 12px;
+  block-size: 8px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.dg-key-now::before {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--accent) 75%, transparent) 0 3px,
+    color-mix(in srgb, var(--accent) 30%, transparent) 3px 6px
+  );
+}
+
+.dg-ok {
+  color: var(--c2);
+  font-weight: 600;
+}
+
+.dg-badge-ok {
+  color: var(--c2);
+  border-color: var(--c2);
+  font-weight: 700;
+}
+
+/* ---------- Цепочка английского ---------- */
+
+.dg-chain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.dg-chain li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dg-chain-sep::before {
+  content: '→';
+  color: var(--muted);
+}
+
+:root[dir='rtl'] .dg-chain-sep::before {
+  content: '←';
+}
+
+.dg-step {
+  font-size: 12px;
+  padding-block: 3px;
+  padding-inline: 10px;
+  color: var(--text);
+}
+
+.dg-step.on {
+  --cc: var(--c2);
+  font-weight: 700;
+}
+
+/* ---------- Предупреждения и праздник ---------- */
+
+.dg-warnings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.dg-warnings li {
+  padding-block: 8px;
+  padding-inline: 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--warn) 50%, var(--border));
+  border-inline-start: 4px solid var(--warn);
+  background: color-mix(in srgb, var(--warn) 8%, var(--surface));
+  font-size: 13px;
+}
+
+.dg-complete {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid var(--c2);
+  background: linear-gradient(
+      110deg,
+      color-mix(in srgb, var(--c2) 18%, var(--surface)),
+      color-mix(in srgb, var(--accent) 18%, var(--surface)),
+      color-mix(in srgb, var(--c5) 18%, var(--surface))
+    )
+    0 0 / 200% 100%;
+  animation: dg-shine 6s ease-in-out infinite alternate;
+}
+
+.dg-complete strong {
+  font-size: 22px;
+  color: var(--c2);
+}
+
+@keyframes dg-shine {
+  to {
+    background-position: 100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dg-complete {
+    animation: none;
+  }
+
+  .dg-bar-done,
+  .dg-bar-now {
+    transition: none;
+  }
+}
+
+/* ---------- Настройки ---------- */
+
+.dg-settings {
+  display: grid;
+  gap: 10px;
+}
+
+.dg-fields {
+  display: grid;
+  gap: 10px;
+}
+
+@media (min-width: 620px) {
+  .dg-fields {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+
+.dg-field {
+  display: grid;
+  gap: 4px;
+  align-content: start;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.dg-input {
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding-block: 7px;
+  padding-inline: 10px;
+  inline-size: 100%;
+  min-width: 0;
+}
+
+.dg-input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.dg-input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.dg-num {
+  max-inline-size: 140px;
+}
+
+.dg-subhead {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dg-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.dg-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dg-check input,
+.dg-done-check input {
+  inline-size: 18px;
+  block-size: 18px;
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.dg-facts {
+  margin: 0;
+  padding-inline-start: 18px;
+  display: grid;
+  gap: 3px;
+}
+
+.dg-details summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.dg-details[open] summary {
+  margin-block-end: 6px;
+}
+
+/* ---------- Курсы ---------- */
+
+.dg-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dg-courses {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.dg-course {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-block: 8px;
+  padding-inline: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-inline-start: 4px solid var(--accent);
+  background: var(--surface-2);
+}
+
+.dg-course.is-done {
+  border-inline-start-color: var(--c2);
+}
+
+.dg-done-check {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  flex: none;
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.dg-course-text {
+  display: grid;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.dg-course-text .result-name {
+  overflow-wrap: anywhere;
+}
+
+.dg-course-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dg-bucket-olamot {
+  border-color: var(--c5);
+}
+
+.dg-bucket-general {
+  border-color: var(--c4);
+}
+
+.dg-course-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex: none;
+}
+
+.dg-editor {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface-2));
+}
+
+@media (min-width: 620px) {
+  .dg-editor {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .dg-field-wide {
+    grid-column: 1 / -1;
+  }
+}
+
+.dg-note {
+  border-block-start: 1px solid var(--border);
+  padding-block-start: 10px;
+}
+
+.dg-note a {
+  color: var(--accent);
+}

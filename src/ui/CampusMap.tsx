@@ -1,20 +1,41 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { OSM_ATTRIBUTION } from '../data/campusGeo';
-import { DAY_LABEL, DAYS, type Day, type Semester } from '../data/types';
+import { DAYS, type Day, type Semester } from '../data/types';
+import { useI18n, type Translator } from '../i18n/I18n';
 import {
   BREAK_BUFFER_MIN,
   BUILDING_XY,
   dayJourney,
   GATES,
-  gateLabel,
+  gateNumber,
+  isGate,
   pointOf,
   walkMinutes,
 } from '../logic/campus';
 import { CAFES } from '../logic/coffee';
 import type { PlacedMeeting } from '../logic/schedule';
 import { dayWalkMeters, formatDistance, stepsFor } from '../logic/walking';
-import { place, sessionLabel, timeRange } from './format';
+import { place, timeRange } from './format';
 import { useZoomPan } from './useZoomPan';
+
+/** «Ворота 40» / «שער 40»; здания остаются номерами. */
+export function spotName(tr: Translator, id: string): string {
+  return isGate(id) ? tr.t('map.gate', { g: gateNumber(id) }) : id;
+}
+
+/** «340 m» / «1,2 км» / «1.2 ק״מ». Английский — как formatDistance, байт в байт. */
+export function distanceText(tr: Translator, meters: number): string {
+  if (tr.lang === 'en') return formatDistance(meters);
+  if (meters < 1000) return tr.t('map.meters', { d: tr.num(Math.round(meters / 10) * 10) });
+  const km = (meters / 1000).toFixed(meters < 10_000 ? 1 : 0);
+  return tr.t('map.km', { d: tr.lang === 'ru' ? km.replace('.', ',') : km });
+}
+
+/** «1,234 steps» / «1 234 шага» / «1,234 צעדים». */
+export function stepsText(tr: Translator, meters: number): string {
+  const n = stepsFor(meters);
+  return tr.t('map.steps', { n, s: tr.num(n) });
+}
 
 interface Props {
   /** Занятия семестра (без блокировок). */
@@ -149,6 +170,8 @@ function clampRect(r: Rect): Rect {
 }
 
 export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, gate, onGate }: Props) {
+  const tr = useI18n();
+  const { t, day, term, type } = tr;
   const desktop = useDesktop();
   const [open, setOpen] = useState(false);
   const [semester, setSemester] = useState<Semester>(initialSemester);
@@ -220,7 +243,7 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
 
   if (!open) {
     return (
-      <button type="button" className="map-fab" onClick={() => setOpen(true)} aria-label="Open campus map">
+      <button type="button" className="map-fab" onClick={() => setOpen(true)} aria-label={t('map.open')}>
         <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
           <path
             d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Zm0 0v14m6-12v14"
@@ -230,7 +253,7 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
             strokeLinejoin="round"
           />
         </svg>
-        <span>Map</span>
+        <span>{t('map.fab')}</span>
       </button>
     );
   }
@@ -296,7 +319,7 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
       className={`map-panel ${floating ? 'floating' : ''} ${maximized ? 'maximized' : ''}`}
       style={style}
       role="dialog"
-      aria-label="Campus map"
+      aria-label={t('map.dialog')}
     >
       <div
         className="slot-head map-head"
@@ -304,12 +327,14 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
         onDoubleClick={(e) => {
           if (desktop && !(e.target as HTMLElement).closest('button')) toggleMaximize();
         }}
-        title={desktop ? 'Drag to move · double-click to maximize' : undefined}
+        title={desktop ? t('map.dragHint') : undefined}
       >
         <div>
-          <span className="pick-label">Campus map · experimental</span>
+          <span className="pick-label">{t('map.kicker')}</span>
           <strong className="slot-time">
-            {choice === 'week' ? `Your buildings · Sem ${semester}` : `${DAY_LABEL[choice]} route · Sem ${semester}`}
+            {choice === 'week'
+              ? t('map.titleWeek', { sem: term(semester) })
+              : t('map.titleDay', { day: day(choice), sem: term(semester) })}
           </strong>
         </div>
         <div className="map-head-btns">
@@ -318,21 +343,21 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
               type="button"
               className="icon-btn"
               onClick={toggleMaximize}
-              aria-label={maximized ? 'Restore map size' : 'Maximize map'}
+              aria-label={maximized ? t('map.restoreSize') : t('map.maximizeMap')}
               aria-pressed={maximized}
-              title={maximized ? 'Restore' : 'Maximize'}
+              title={maximized ? t('map.restore') : t('map.maximize')}
             >
               {maximized ? '❐' : '⤢'}
             </button>
           )}
-          <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label="Close map">
+          <button type="button" className="icon-btn" onClick={() => setOpen(false)} aria-label={t('map.close')}>
             ×
           </button>
         </div>
       </div>
 
       <div className="map-controls">
-        <div className="sem-tabs" role="tablist" aria-label="Map semester">
+        <div className="sem-tabs" role="tablist" aria-label={t('map.semesterTabs')}>
           {(['A', 'B'] as Semester[]).map((s) => (
             <button
               key={s}
@@ -342,11 +367,11 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
               className={semester === s ? 'on' : ''}
               onClick={() => setSemester(s)}
             >
-              Sem {s}
+              {term(s)}
             </button>
           ))}
         </div>
-        <div className="day-chips" role="tablist" aria-label="Map day">
+        <div className="day-chips" role="tablist" aria-label={t('map.dayTabs')}>
           <button
             type="button"
             role="tab"
@@ -354,7 +379,7 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
             className={`chip chip-btn ${choice === 'week' ? 'on' : ''}`}
             onClick={() => setChoice('week')}
           >
-            Week
+            {t('map.week')}
           </button>
           {DAYS.map((d) => (
             <button
@@ -365,37 +390,38 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
               className={`chip chip-btn ${choice === d ? 'on' : ''}`}
               onClick={() => setChoice(d)}
             >
-              {DAY_LABEL[d]}
+              {day(d)}
             </button>
           ))}
         </div>
         <label className="block-row">
-          Enter via
-          <select value={gate} onChange={(e) => setGate(e.target.value)} aria-label="Campus gate">
-            <option value="">— no gate —</option>
+          {t('map.enterVia')}
+          <select value={gate} onChange={(e) => setGate(e.target.value)} aria-label={t('map.gateSelect')}>
+            <option value="">{t('map.noGate')}</option>
             {Object.keys(GATES).map((g) => (
               <option key={g} value={g}>
-                {gateLabel(g)}
+                {spotName(tr, g)}
               </option>
             ))}
           </select>
         </label>
         {journey && path.length > 0 && (
           <button type="button" className="link-btn" onClick={() => setWholeCampus((w) => !w)}>
-            {wholeCampus ? 'Zoom to route' : 'Whole campus'}
+            {wholeCampus ? t('map.zoomToRoute') : t('map.wholeCampus')}
           </button>
         )}
       </div>
 
       <div className="map-body">
-        <div className="map-canvas">
+        {/* Схема — география: в иврите не зеркалим. */}
+        <div className="map-canvas" dir="ltr">
         <svg
           ref={svgRef}
           className="map-svg"
           viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`}
           preserveAspectRatio="xMidYMid meet"
           role="img"
-          aria-label="Schematic campus map with your route"
+          aria-label={t('map.svg')}
         >
           <defs>
             <marker id="map-arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto">
@@ -423,14 +449,14 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
             <g key={id} className={`map-gate ${gate === id ? 'on' : ''}`}>
               <path d={`M${x - 9},${y - 8} L${x + 9},${y - 8} L${x},${y + 8} Z`} />
               <text x={x + 12} y={y + 5}>
-                {id.replace('gate-', 'G')}
+                {t('map.gateShort', { g: gateNumber(id) })}
               </text>
             </g>
           ))}
 
           {CAFES.map((c) => (
             <g key={c.id} className="map-cafe">
-              <title>{c.label}</title>
+              <title>{t('map.cafe', { b: c.near })}</title>
               <circle cx={c.xy[0]} cy={c.xy[1]} r={9} />
               <text x={c.xy[0]} y={c.xy[1] + 5}>
                 ☕
@@ -440,19 +466,19 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
 
           {/* Маршрут: непрерывная линия со стрелками от начала дня до конца */}
           {legLines.map((leg, i) => {
-            const t = trimmed(leg.from.xy, leg.to.xy, isGateId(leg.from.id) ? 12 : 20, isGateId(leg.to.id) ? 14 : 22);
-            if (t.len < 1) return null;
+            const seg = trimmed(leg.from.xy, leg.to.xy, isGateId(leg.from.id) ? 12 : 20, isGateId(leg.to.id) ? 14 : 22);
+            if (seg.len < 1) return null;
             return (
               <g key={i} className={`map-leg ${leg.run ? 'run' : ''}`}>
                 <line
-                  x1={t.x1}
-                  y1={t.y1}
-                  x2={t.x2}
-                  y2={t.y2}
+                  x1={seg.x1}
+                  y1={seg.y1}
+                  x2={seg.x2}
+                  y2={seg.y2}
                   markerEnd={`url(#${leg.run ? 'map-arrow-run' : 'map-arrow'})`}
                 />
-                {leg.walk !== null && t.len > 60 && (
-                  <text className="map-leg-label" x={t.mx + 10} y={t.my}>
+                {leg.walk !== null && seg.len > 60 && (
+                  <text className="map-leg-label" x={seg.mx + 10} y={seg.my}>
                     {leg.walk}′
                   </text>
                 )}
@@ -475,11 +501,11 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
             );
           })}
         </svg>
-          <div className="map-zoom" role="group" aria-label="Map zoom">
-            <button type="button" className="icon-btn" onClick={() => zoomAt(1.6)} aria-label="Zoom in">
+          <div className="map-zoom" role="group" aria-label={t('map.zoomGroup')}>
+            <button type="button" className="icon-btn" onClick={() => zoomAt(1.6)} aria-label={t('map.zoomIn')}>
               +
             </button>
-            <button type="button" className="icon-btn" onClick={() => zoomAt(1 / 1.6)} aria-label="Zoom out">
+            <button type="button" className="icon-btn" onClick={() => zoomAt(1 / 1.6)} aria-label={t('map.zoomOut')}>
               −
             </button>
             <button
@@ -487,8 +513,8 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
               className="icon-btn"
               onClick={reset}
               disabled={Math.abs(zoom - 1) < 0.05}
-              aria-label="Reset zoom"
-              title="Reset zoom"
+              aria-label={t('map.resetZoom')}
+              title={t('map.resetZoom')}
             >
               ⟲
             </button>
@@ -499,22 +525,22 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
           {stops.length === 0 ? (
             <p className="today-empty">
               {choice === 'week'
-                ? `No classes in Semester ${semester} yet.`
-                : `No classes on ${DAY_LABEL[choice]} in Semester ${semester}.`}
+                ? t('map.emptyWeek', { sem: term(semester, 'long') })
+                : t('map.emptyDay', { day: day(choice), sem: term(semester, 'long') })}
             </p>
           ) : journey ? (
             <>
               <p className="route-summary">
-                {[gate && gateLabel(gate), ...journey.stops.map((m) => m.building ?? '?'), gate && gateLabel(gate)]
+                {[gate && spotName(tr, gate), ...journey.stops.map((m) => m.building ?? '?'), gate && spotName(tr, gate)]
                   .filter(Boolean)
-                  .join(' → ')}
+                  .join(t('map.arrow'))}
                 <span className="muted">
                   {' '}
-                  · ≈{journey.totalWalk} min walking
+                  · {t('map.totalWalk', { n: journey.totalWalk })}
                   {choice !== 'week' &&
                     (() => {
                       const meters = dayWalkMeters(meetings, choice, gate || undefined);
-                      return meters > 0 ? ` · ${formatDistance(meters)} · ${stepsFor(meters).toLocaleString('en-US')} steps` : '';
+                      return meters > 0 ? ` · ${distanceText(tr, meters)} · ${stepsText(tr, meters)}` : '';
                     })()}
                 </span>
               </p>
@@ -523,10 +549,10 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
                   <li>
                     <div className="route-stop route-gate">
                       <span className="route-num">▼</span>
-                      <span className="result-name">Arrive at {gateLabel(gate)}</span>
+                      <span className="result-name">{t('map.arrive', { gate: spotName(tr, gate) })}</span>
                     </div>
                     <div className="route-leg">
-                      {journey.arrive === null ? 'Walk time unknown' : `Walk ≈${journey.arrive} min to the first class`}
+                      {journey.arrive === null ? t('map.walkUnknown') : t('map.walkFirst', { n: journey.arrive })}
                     </div>
                   </li>
                 )}
@@ -537,13 +563,13 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
                       {leg && (
                         <div className={`route-leg ${leg.run ? 'run' : ''}`}>
                           {leg.to.start < leg.from.end
-                            ? 'Overlaps the previous class'
+                            ? t('map.overlap')
                             : leg.walk === null
-                              ? 'Walk time unknown (building not on the map)'
+                              ? t('map.walkOffMap')
                               : leg.walk === 0
-                                ? 'Same building'
-                                : `Walk ≈${leg.walk} min · ${leg.available} min to get there`}
-                          {leg.run && <strong> · Run!</strong>}
+                                ? t('map.sameBuilding')
+                                : t('map.walkLeg', { walk: leg.walk, avail: leg.available })}
+                          {leg.run && <strong> · {t('map.run')}</strong>}
                         </div>
                       )}
                       <div className={`route-stop c${m.color}`}>
@@ -551,7 +577,7 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
                         <span className="agenda-main">
                           <span className="result-name">{m.courseName}</span>
                           <span className="result-meta">
-                            {timeRange(m.start, m.end)} · {sessionLabel(m.type, m.sectionNumber)}
+                            {timeRange(m.start, m.end)} · {type(m.type)} {m.sectionNumber}
                             {place(m.building, m.room) && ` · ${place(m.building, m.room)}`}
                           </span>
                         </span>
@@ -562,11 +588,11 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
                 {gate && journey.stops.length > 0 && (
                   <li>
                     <div className="route-leg">
-                      {journey.leave === null ? 'Walk time unknown' : `Walk ≈${journey.leave} min back to the gate`}
+                      {journey.leave === null ? t('map.walkUnknown') : t('map.walkBack', { n: journey.leave })}
                     </div>
                     <div className="route-stop route-gate">
                       <span className="route-num">▲</span>
-                      <span className="result-name">Leave via {gateLabel(gate)}</span>
+                      <span className="result-name">{t('map.leave', { gate: spotName(tr, gate) })}</span>
                     </div>
                   </li>
                 )}
@@ -582,7 +608,7 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
                     <span className="result-meta">
                       {meetings
                         .filter((x) => x.courseId === m.courseId)
-                        .map((x) => `${DAY_LABEL[x.day]} · ${place(x.building, x.room) || 'no room'}`)
+                        .map((x) => `${day(x.day)} · ${place(x.building, x.room) || t('map.noRoom')}`)
                         .join(', ')}
                     </span>
                   </span>
@@ -590,14 +616,13 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
               ))}
             </ul>
           )}
-          {offMap.length > 0 && <p className="muted small">Not on the map: {offMap.join(', ')}</p>}
+          {offMap.length > 0 && <p className="muted small">{t('map.offMap', { list: offMap.join(', ') })}</p>}
           <p className="muted small">
-            Schematic map. Distances use real building positions where known (
+            {t('map.noteBefore')}
             <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
               {OSM_ATTRIBUTION}
             </a>
-            ); walk times are estimates — we assume {BREAK_BUFFER_MIN} min between back-to-back classes. Rooms may
-            change — check Inbar.
+            {t('map.noteAfter', { n: BREAK_BUFFER_MIN })}
           </p>
         </div>
       </div>
@@ -610,7 +635,7 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
             startResize(e);
           }}
           role="presentation"
-          title="Drag to resize"
+          title={t('map.resizeHint')}
         />
       )}
     </div>

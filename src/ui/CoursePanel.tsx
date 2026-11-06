@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { SESSION_TYPE_LABEL, type Catalog, type Course } from '../data/types';
+import type { Catalog, Course } from '../data/types';
+import { useI18n } from '../i18n/I18n';
 import { findSection, missingTypes, requiredTypes, type Plan } from '../logic/selection';
-import { TERM_LABEL } from './format';
 
 interface Props {
   catalog: Catalog;
@@ -29,6 +29,7 @@ export function matchCourse(course: Course, query: string): boolean {
 
 export function CoursePanel(props: Props) {
   const { catalog, plan, activeId, onAdd, onRemove, onPick, onClear, onSetHidden } = props;
+  const { t, type, term } = useI18n();
   const [query, setQuery] = useState('');
   const planned = new Set(plan.courses.map((c) => c.courseId));
   const results = useMemo(
@@ -41,31 +42,31 @@ export function CoursePanel(props: Props) {
     <div className="course-panel">
       <div className="block">
         <div className="block-head">
-          <h2>My courses</h2>
+          <h2>{t('courses.mine')}</h2>
           {plan.courses.length > 0 && (
             <button type="button" className="link-btn" onClick={onClear}>
-              Clear all
+              {t('courses.clearAll')}
             </button>
           )}
         </div>
         <div className="plan-tools">
           <button type="button" className="btn btn-quiet btn-small" onClick={props.onImportInbar}>
-            ⇪ Import from Inbar
+            {t('courses.import')}
           </button>
           <button
             type="button"
             className="btn btn-quiet btn-small"
             onClick={props.onSaveFile}
-            title="Download your schedule and settings as a file"
+            title={t('courses.saveFileTitle')}
           >
-            Save file
+            {t('courses.saveFile')}
           </button>
-          <label className="btn btn-quiet btn-small file-btn" title="Load a schedule file saved earlier">
-            Open file
+          <label className="btn btn-quiet btn-small file-btn" title={t('courses.openFileTitle')}>
+            {t('courses.openFile')}
             <input
               type="file"
               accept="application/json,.json"
-              aria-label="Open a BarSuffer schedule file"
+              aria-label={t('courses.openFileAria')}
               onChange={(e) => {
                 const file = e.target.files?.[0];
                 if (file) props.onOpenFile(file);
@@ -75,7 +76,7 @@ export function CoursePanel(props: Props) {
           </label>
         </div>
         {plan.courses.length === 0 ? (
-          <p className="empty">Nothing yet. Find a course below, or import your schedule from Inbar.</p>
+          <p className="empty">{t('courses.empty')}</p>
         ) : (
           <ul className="my-courses">
             {plan.courses.map((pc) => {
@@ -90,25 +91,25 @@ export function CoursePanel(props: Props) {
                   <button type="button" className="my-course-main" onClick={() => onPick(course)}>
                     <span className="my-course-name">{course.name}</span>
                     <span className="my-course-meta">
-                      {course.courseId} · {TERM_LABEL[course.term]}
-                      {pc.required && <span className="req-tag">REQUIRED</span>}
-                      {course.isDemo && <span className="demo-tag">DEMO</span>}
+                      {course.courseId} · {term(course.term)}
+                      {pc.required && <span className="req-tag">{t('courses.requiredTag')}</span>}
+                      {course.isDemo && <span className="demo-tag">{t('common.demo')}</span>}
                     </span>
-                    {pc.hidden && <span className="hint-muted">Hidden — not on the grid, not counted</span>}
+                    {pc.hidden && <span className="hint-muted">{t('courses.hiddenHint')}</span>}
                     <span className="chips">
-                      {requiredTypes(course).map((type) => {
-                        const num = pc.picks[type];
+                      {requiredTypes(course).map((st) => {
+                        const num = pc.picks[st];
                         const section = num ? findSection(course, num) : undefined;
                         return (
-                          <span key={type} className={`chip ${section ? '' : 'chip-missing'}`}>
-                            {SESSION_TYPE_LABEL[type]} {section ? section.sectionNumber : '—'}
+                          <span key={st} className={`chip ${section ? '' : 'chip-missing'}`}>
+                            {type(st)} {section ? section.sectionNumber : '—'}
                           </span>
                         );
                       })}
                     </span>
                     {missing.length > 0 && (
                       <span className="hint-warn">
-                        Pick {missing.map((t) => SESSION_TYPE_LABEL[t].toLowerCase()).join(', ')}
+                        {t('courses.pick', { types: missing.map((st) => type(st).toLowerCase()).join(', ') })}
                       </span>
                     )}
                   </button>
@@ -117,8 +118,8 @@ export function CoursePanel(props: Props) {
                       type="button"
                       className="icon-btn remove"
                       onClick={() => onRemove(pc.courseId)}
-                      aria-label={`Remove ${course.name}`}
-                      title="Remove"
+                      aria-label={t('courses.removeAria', { name: course.name })}
+                      title={t('common.remove')}
                     >
                       ×
                     </button>
@@ -126,9 +127,9 @@ export function CoursePanel(props: Props) {
                       type="button"
                       className="icon-btn remove"
                       onClick={() => onSetHidden(pc.courseId, !pc.hidden)}
-                      aria-label={pc.hidden ? `Show ${course.name}` : `Hide ${course.name}`}
+                      aria-label={t(pc.hidden ? 'courses.showAria' : 'courses.hideAria', { name: course.name })}
                       aria-pressed={Boolean(pc.hidden)}
-                      title={pc.hidden ? 'Show on the grid' : 'Hide for now'}
+                      title={t(pc.hidden ? 'courses.showTitle' : 'courses.hideTitle')}
                     >
                       {pc.hidden ? (
                         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
@@ -150,14 +151,14 @@ export function CoursePanel(props: Props) {
       </div>
 
       <div className="block">
-        <h2>Find courses</h2>
+        <h2>{t('courses.find')}</h2>
         <input
           type="search"
           className="search"
-          placeholder="Name, number or lecturer"
+          placeholder={t('courses.searchPlaceholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          aria-label="Search courses"
+          aria-label={t('courses.searchAria')}
         />
         <ul className="results">
           {results.map((course) => {
@@ -170,25 +171,24 @@ export function CoursePanel(props: Props) {
                 <div className="result-text">
                   <span className="result-name">{course.name}</span>
                   <span className="result-meta">
-                    {course.courseId} · {TERM_LABEL[course.term]} · {course.sections.length}{' '}
-                    {course.sections.length === 1 ? 'group' : 'groups'}
-                    {course.isDemo && <span className="demo-tag">DEMO</span>}
+                    {course.courseId} · {term(course.term)} · {t('courses.groups', { n: course.sections.length })}
+                    {course.isDemo && <span className="demo-tag">{t('common.demo')}</span>}
                   </span>
                   {lecturers && <span className="result-meta">{lecturers}</span>}
                 </div>
                 {added ? (
                   <button type="button" className="btn btn-quiet" onClick={() => onPick(course)}>
-                    Added
+                    {t('courses.added')}
                   </button>
                 ) : (
                   <button type="button" className="btn" onClick={() => onAdd(course)}>
-                    + Add
+                    {t('courses.add')}
                   </button>
                 )}
               </li>
             );
           })}
-          {results.length === 0 && <li className="empty">No courses match “{query}”.</li>}
+          {results.length === 0 && <li className="empty">{t('courses.noMatch', { query })}</li>}
         </ul>
       </div>
     </div>

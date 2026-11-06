@@ -18,7 +18,8 @@
 
   /* Rubik — интерфейс (есть иврит и кириллица), Caveat — рукописные акценты */
   --font-ui: 'Rubik Variable', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-  --font-hand: 'Caveat Variable', 'Segoe Print', 'Comic Sans MS', cursive;
+  /* В Caveat нет иврита: буквы, которых нет в его unicode-range, берутся из Rubik */
+  --font-hand: 'Caveat Variable', 'Rubik Variable', 'Segoe Print', 'Comic Sans MS', cursive;
 
   --c0: #6ea8fe;
   --c1: #ff9f5a;
@@ -265,6 +266,9 @@ h3 {
 }
 
 .theme-hex {
+  /* #8b7cff в RTL-абзаце рассыпается на «b7cff#8» */
+  direction: ltr;
+  unicode-bidi: isolate;
   font-size: 13px;
   color: var(--muted);
 }
@@ -523,7 +527,7 @@ h3 {
 .suffer-close {
   position: absolute;
   top: 8px;
-  right: 8px;
+  inset-inline-end: 8px;
   background: rgb(0 0 0 / 55%);
   border-color: rgb(255 255 255 / 25%);
   color: #fff;
@@ -731,7 +735,8 @@ h3 {
   text-align: start;
   background: none;
   border: 0;
-  padding: 8px 4px 8px 10px;
+  padding-block: 8px;
+  padding-inline: 10px 4px;
 }
 
 .my-course-name {
@@ -745,7 +750,8 @@ h3 {
 }
 
 .my-course .remove {
-  margin: 6px 6px 0 0;
+  margin: 6px 0 0;
+  margin-inline-end: 6px;
   width: 28px;
   height: 28px;
   font-size: 18px;
@@ -987,7 +993,8 @@ h3 {
 
 .sprints {
   margin: 0;
-  padding: 8px 12px 8px 28px;
+  padding-block: 8px;
+  padding-inline: 28px 12px;
   border: 1px solid var(--warn);
   border-radius: 12px;
   background: color-mix(in srgb, var(--warn) 8%, var(--surface));
@@ -1039,7 +1046,8 @@ h3 {
 
 .conflicts {
   margin: 0;
-  padding: 8px 12px 8px 28px;
+  padding-block: 8px;
+  padding-inline: 28px 12px;
   border: 1px solid var(--danger);
   border-radius: 12px;
   background: color-mix(in srgb, var(--danger) 8%, var(--surface));
@@ -1473,8 +1481,7 @@ h3 {
 /* ---------- Пустые клетки и «что влезет» ---------- */
 .cell {
   position: absolute;
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   height: var(--row-h);
   padding: 0;
   border: 0;
@@ -1497,8 +1504,7 @@ h3 {
 .slot-sheet {
   position: fixed;
   z-index: 25;
-  left: 0;
-  right: 0;
+  inset-inline: 0;
   bottom: 60px; /* над нижними вкладками */
   max-height: 60vh;
   display: flex;
@@ -1511,8 +1517,7 @@ h3 {
 
 @media (min-width: 900px) {
   .slot-sheet {
-    left: auto;
-    right: 16px;
+    inset-inline: auto 16px;
     bottom: 16px;
     width: 380px;
     max-height: 70vh;
@@ -1725,7 +1730,7 @@ h3 {
 .map-fab {
   position: fixed;
   z-index: 24;
-  right: 16px;
+  inset-inline-end: 16px;
   bottom: 76px; /* над нижними вкладками */
   display: inline-flex;
   align-items: center;
@@ -1756,7 +1761,9 @@ h3 {
 
 @media (min-width: 900px) {
   .map-panel {
-    inset: auto 16px 16px auto;
+    /* Пристыковано в углу кнопки карты (в иврите — слева); перетащенное окно JS ставит left/top */
+    inset-block: auto 16px;
+    inset-inline: auto 16px;
     width: min(680px, calc(100vw - 32px));
     height: min(760px, calc(100vh - 100px));
     border: 1px solid var(--accent);
@@ -1851,6 +1858,8 @@ h3 {
 }
 
 .map-svg {
+  /* Карта — география: подписи SVG не зеркалим (иначе text-anchor: start уедет влево от точки) */
+  direction: ltr;
   width: 100%;
   height: 100%;
   background: var(--bg);
@@ -2033,7 +2042,8 @@ h3 {
 }
 
 .route-leg {
-  margin: 2px 0 2px 18px;
+  margin-block: 2px;
+  margin-inline: 18px 0;
   padding-inline-start: 14px;
   border-inline-start: 2px dashed var(--accent);
   font-size: 12px;
@@ -2318,7 +2328,8 @@ h3 {
 
 .rain {
   margin: 8px 0 0;
-  padding: 8px 12px 8px 28px;
+  padding-block: 8px;
+  padding-inline: 28px 12px;
   border-radius: 10px;
   border: 1px solid var(--c7);
   background: color-mix(in srgb, var(--c7) 10%, var(--surface));
@@ -2593,13 +2604,14 @@ h3 {
   cursor: pointer;
 }
 
+/* В иврите сторис листаются справа налево: «назад» — у правого края */
 .story-tap.prev {
-  left: 0;
+  inset-inline-start: 0;
   width: 33%;
 }
 
 .story-tap.next {
-  right: 0;
+  inset-inline-end: 0;
   width: 67%;
 }
 
@@ -2859,8 +2871,7 @@ h3 {
 
 .mini-block {
   position: absolute;
-  left: 2px;
-  right: 2px;
+  inset-inline: 2px;
   border-radius: 2px;
   background: var(--cc);
   opacity: 0.85;
@@ -2900,4 +2911,40 @@ h3 {
   .event {
     transition: none;
   }
+}
+
+/* ---------- Иврит и RTL ---------- */
+/* Направленные значки (undo/redo и т. п.) зеркалим */
+[dir='rtl'] .flip-rtl {
+  transform: scaleX(-1);
+}
+
+/* Заливка прогресса идёт от начала строки — и градиент тоже */
+[dir='rtl'] .progress-bar span {
+  background: linear-gradient(270deg, var(--accent), var(--c6));
+}
+
+/* Разрядка и капс для иврита не годятся (в иврите нет заглавных букв) */
+:lang(he) h2,
+:lang(he) .pill,
+:lang(he) .misery-label,
+:lang(he) .pick-label,
+:lang(he) .story-kicker,
+:lang(he) .demo-tag,
+:lang(he) .req-tag {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+/* Рукописные заголовки в иврите рисуются Rubik: он крупнее Caveat при том же кегле */
+:lang(he) .misery-title {
+  font-size: 19px;
+}
+
+:lang(he) .ap-title .misery-title {
+  font-size: 16px;
+}
+
+:lang(he) .story-title {
+  font-size: 30px;
 }

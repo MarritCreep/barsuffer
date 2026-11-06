@@ -1,16 +1,39 @@
-﻿import { useEffect, useRef, useState } from 'react';
+﻿import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Course, Semester } from '../data/types';
+import { useI18n } from '../i18n/I18n';
+import type { MessageKey } from '../i18n/messages';
 import {
   applyImport,
   buildImport,
   parseInbarPdf,
   type ImportPlan,
-  type ImportScope,
   type InbarImport,
+  type InbarWarning,
   type PdfPage,
 } from '../logic/inbar';
 import type { Plan } from '../logic/selection';
+import { timeRange } from './format';
 import { readPdf } from './readPdf';
+
+/**
+ * Переведённая строка с разметкой → React-узлы: `<b>…</b>` — жирный, `{name}` — узел из `nodes`
+ * (например, имя файла в своём span). Остальной текст остаётся как есть.
+ */
+export function rich(text: string, nodes: Record<string, ReactNode> = {}): ReactNode[] {
+  const out: ReactNode[] = [];
+  const re = /<b>(.*?)<\/b>|\{(\w+)\}/g;
+  let last = 0;
+  let key = 0;
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    if (m[1] !== undefined) out.push(<strong key={key++}>{rich(m[1], nodes)}</strong>);
+    else if (m[2]! in nodes) out.push(<Fragment key={key++}>{nodes[m[2]!]}</Fragment>);
+    else out.push(m[0]);
+    last = re.lastIndex;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
 
 interface Props {
   plan: Plan;
@@ -22,7 +45,8 @@ interface Props {
 type State =
   | { step: 'pick' }
   | { step: 'reading' }
-  | { step: 'error'; message: string }
+  /** `warning` — что нашёл разбор; без него — файл вообще не прочитался. */
+  | { step: 'error'; warning?: InbarWarning }
   | {
       step: 'preview';
       pages: PdfPage[];
@@ -33,15 +57,11 @@ type State =
       askSemester: boolean;
     };
 
-const SCOPE_LABEL: Record<ImportScope, string> = {
-  A: 'Semester A',
-  B: 'Semester B',
-  year: 'the whole year',
-  unknown: 'an unknown semester',
-};
+const NO_CLASSES: InbarWarning = { code: 'noClasses', message: 'No classes found in this PDF.' };
 
 /** Импорт расписания из PDF Инбара. Файл читается в браузере и никуда не отправляется. */
 export function ImportDialog({ plan, courses, onApply, onClose }: Props) {
+  const { t } = useI18n();
   const [state, setState] = useState<State>({ step: 'pick' });
   const [mode, setMode] = useState<'replace' | 'add'>(plan.courses.length > 0 ? 'add' : 'replace');
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -51,7 +71,7 @@ export function ImportDialog({ plan, courses, onApply, onClose }: Props) {
   const preview = (pages: PdfPage[], fileName: string, fallback?: Semester, askSemester = false) => {
     const parsed = parseInbarPdf(pages, { fallbackSemester: fallback });
     if (parsed.meetings.length === 0 && parsed.untimed.length === 0) {
-      setState({ step: 'error', message: parsed.warnings[0] ?? 'No classes found in this PDF.' });
+      setState({ step: 'error', warning: parsed.warnings[0] ?? NO_CLASSES });
       return;
     }
     if (parsed.scope === 'unknown') {
@@ -68,7 +88,7 @@ export function ImportDialog({ plan, courses, onApply, onClose }: Props) {
     try {
       preview(await readPdf(file), file.name);
     } catch {
-      setState({ step: 'error', message: 'Could not read this file. Is it the PDF exported from Inbar?' });
+      setState({ step: 'error' });
     }
   };
 
@@ -85,12 +105,12 @@ export function ImportDialog({ plan, courses, onApply, onClose }: Props) {
       >
         <div className="slot-head">
           <div>
-            <span className="pick-label">Import</span>
+            <span className="pick-label">{t('import.label')}</span>
             <strong id="import-title" className="slot-time">
-              Your schedule from Inbar
+              {t('import.title')}
             </strong>
           </div>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+          <button type="button" className="icon-btn" onClick={onClose} aria-label={t('common.close')}>
             ×
           </button>
         </div>
@@ -99,28 +119,26 @@ export function ImportDialog({ plan, courses, onApply, onClose }: Props) {
           {(state.step === 'pick' || state.step === 'error' || state.step === 'reading') && (
             <>
               <ol className="import-steps">
-                <li>
-                  Open Inbar → <strong>Schedule</strong> (English version) and pick <strong>1st Semester</strong>,{' '}
-                  <strong>2nd Semester</strong> or <strong>All Semesters</strong>.
-                </li>
-                <li>Export or print the page as <strong>PDF</strong>.</li>
-                <li>Upload that PDF here.</li>
+                <li>{rich(t('import.step1'))}</li>
+                <li>{rich(t('import.step2'))}</li>
+                <li>{t('import.step3')}</li>
               </ol>
-              <p className="muted small">
-                The file is read right here in your browser and never sent anywhere. BarSuffer never asks for your
-                Inbar password, and your name in the PDF is ignored.
-              </p>
+              <p className="muted small">{t('import.privacy')}</p>
               <label className="file-drop">
                 <input
                   type="file"
                   accept="application/pdf,.pdf"
                   onChange={(e) => void onFile(e.target.files?.[0])}
-                  aria-label="Inbar schedule PDF"
+                  aria-label={t('import.fileAria')}
                   disabled={state.step === 'reading'}
                 />
-                <span>{state.step === 'reading' ? 'Reading the PDF…' : 'Choose PDF'}</span>
+                <span>{t(state.step === 'reading' ? 'import.reading' : 'import.choose')}</span>
               </label>
-              {state.step === 'error' && <p className="hint-warn">{state.message}</p>}
+              {state.step === 'error' && (
+                <p className="hint-warn">
+                  {state.warning ? warningText(t, state.warning) : t('import.unreadableFile')}
+                </p>
+              )}
             </>
           )}
 
@@ -143,7 +161,9 @@ export function ImportDialog({ plan, courses, onApply, onClose }: Props) {
   );
 }
 
-const DAY_SHORT = ['', 'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+function warningText(t: ReturnType<typeof useI18n>['t'], w: InbarWarning): string {
+  return t(`import.warn.${w.code}` as MessageKey, w.params);
+}
 
 /**
  * Шаг проверки: что именно прочитано из распечатки и что изменится в плане.
@@ -170,6 +190,7 @@ function ImportPreview({
   onCancel: () => void;
   onBack: () => void;
 }) {
+  const { t, day, term } = useI18n();
   const { imp, parsed, fileName } = state;
   const scope = parsed.scope;
   const groupCount = new Set([...parsed.meetings, ...parsed.untimed].map((g) => `${g.courseId}-${g.group}`)).size;
@@ -196,31 +217,28 @@ function ImportPreview({
   return (
     <>
       <p>
-        Found <strong>{groupCount}</strong> {groupCount === 1 ? 'group' : 'groups'} in{' '}
-        <span className="muted">{fileName}</span>.{' '}
-        {state.askSemester ? '' : <span className="muted">This looks like a print of {SCOPE_LABEL[scope]}.</span>}
+        {rich(t('import.found', { n: groupCount }), { file: <span className="muted">{fileName}</span> })}{' '}
+        {state.askSemester ? '' : <span className="muted">{t(`import.looksLike.${scope}` as MessageKey)}</span>}
       </p>
 
       {state.askSemester && (
         <div className="import-warn">
-          <strong>This PDF doesn’t say which semester it is.</strong>
-          <div className="import-mode" role="radiogroup" aria-label="Semester of this PDF">
+          <strong>{t('import.whichSemester')}</strong>
+          <div className="import-mode" role="radiogroup" aria-label={t('import.semesterAria')}>
             {(['A', 'B'] as Semester[]).map((s) => (
               <label key={s}>
-                <input type="radio" checked={scope === s} onChange={() => onSemester(s)} /> Semester {s}
+                <input type="radio" checked={scope === s} onChange={() => onSemester(s)} /> {term(s, 'long')}
               </label>
             ))}
           </div>
         </div>
       )}
 
-      <p className="import-check">
-        <strong>Check that we read your print correctly</strong> — compare with Inbar before applying.
-      </p>
+      <p className="import-check">{rich(t('import.check'))}</p>
 
       {semesters.map((s) => (
-        <section key={s} className="import-sem" aria-label={`Semester ${s}`}>
-          <h3>Semester {s}</h3>
+        <section key={s} className="import-sem" aria-label={term(s, 'long')}>
+          <h3>{term(s, 'long')}</h3>
           <ul className="import-read">
             {imp.planned.map((p) => {
               const rows = Object.values(p.picks).flatMap((group) => {
@@ -231,9 +249,9 @@ function ImportPreview({
                   {
                     group,
                     text: untimed
-                      ? 'no fixed time'
+                      ? t('import.noFixedTime')
                       : meets
-                          .map((m) => `${DAY_SHORT[m.day]} ${timeLabel(m.start)}–${timeLabel(m.end)}${m.building ? ` · ${m.building}-${m.room}` : ''}`)
+                          .map((m) => `${day(m.day)} ${timeRange(m.start, m.end)}${m.building ? ` · ${m.building}-${m.room}` : ''}`)
                           .join('; '),
                     lecturer: meets[0]?.lecturer,
                   },
@@ -258,7 +276,7 @@ function ImportPreview({
 
       {imp.issues.length > 0 && (
         <div className="import-errors" role="alert">
-          <strong>{imp.issues.length} not added — not in the BarSuffer catalog yet:</strong>
+          <strong>{t('import.notAdded', { n: imp.issues.length })}</strong>
           <ul className="import-list">
             {imp.issues.map((i) => (
               <li key={`${i.courseId}-${i.group ?? ''}`} className="import-bad">
@@ -267,24 +285,28 @@ function ImportPreview({
                   {i.name}{' '}
                   <span className="muted small">
                     {i.courseId}
-                    {i.group ? `-${i.group}` : ''} · Sem {i.semester} ·{' '}
-                    {i.reason === 'unknown-course' ? 'course not in our data' : 'this group is not in our data'}
+                    {i.group ? `-${i.group}` : ''} · {term(i.semester)} ·{' '}
+                    {t(i.reason === 'unknown-course' ? 'import.unknownCourse' : 'import.unknownGroup')}
                   </span>
                 </span>
               </li>
             ))}
           </ul>
-          <p className="muted small">Add them in Inbar as usual — BarSuffer just can’t plan around them yet.</p>
+          <p className="muted small">{t('import.addInInbar')}</p>
         </div>
       )}
 
       {imp.mismatches.length > 0 && (
         <div className="import-warn">
-          <strong>Times differ from our data — check Inbar:</strong>
+          <strong>{t('import.timesDiffer')}</strong>
           <ul className="import-list">
             {imp.mismatches.map((m) => (
               <li key={`${m.courseId}-${m.group}`}>
-                {m.name} {m.courseId}-{m.group}: Inbar says {m.inbar}
+                {t('import.inbarSays', {
+                  name: m.name,
+                  id: `${m.courseId}-${m.group}`,
+                  times: m.times.map((x) => `${day(x.day)} ${timeRange(x.start, x.end)}`).join(', '),
+                })}
               </li>
             ))}
           </ul>
@@ -294,57 +316,58 @@ function ImportPreview({
       {parsed.warnings.length > 0 && (
         <ul className="hint-warn">
           {parsed.warnings.map((w) => (
-            <li key={w}>{w}</li>
+            <li key={w.message}>{warningText(t, w)}</li>
           ))}
         </ul>
       )}
 
       {hasCourses && (
-        <div className="import-mode" role="radiogroup" aria-label="Import mode">
+        <div className="import-mode" role="radiogroup" aria-label={t('import.modeAria')}>
           <label>
-            <input type="radio" checked={mode === 'add'} onChange={() => setMode('add')} /> Add to my courses
+            <input type="radio" checked={mode === 'add'} onChange={() => setMode('add')} /> {t('import.modeAdd')}
           </label>
           <label>
             <input type="radio" checked={mode === 'replace'} onChange={() => setMode('replace')} />{' '}
-            {scope === 'A' || scope === 'B' ? `Replace my Semester ${scope} courses` : 'Replace my courses'}
+            {t(scope === 'A' || scope === 'B' ? `import.modeReplace.${scope}` : 'import.modeReplace.all')}
           </label>
         </div>
       )}
 
-      <div className="import-summary" aria-label="What will change">
-        <strong>What will change</strong>
+      <div className="import-summary" aria-label={t('import.whatChanges')}>
+        <strong>{t('import.whatChanges')}</strong>
         {nothingChanges ? (
-          <span className="muted small">Nothing — your plan already matches this print.</span>
+          <span className="muted small">{t('import.nothing')}</span>
         ) : (
           <ul className="import-list">
-            {added.length > 0 && <li className="import-ok">+ {added.length} added: {added.map((p) => name(p.courseId)).join(', ')}</li>}
+            {added.length > 0 && (
+              <li className="import-ok">
+                {t('import.added', { n: added.length, names: added.map((p) => name(p.courseId)).join(', ') })}
+              </li>
+            )}
             {changed.length > 0 && (
-              <li>~ {changed.length} switched to the groups from Inbar: {changed.map((p) => name(p.courseId)).join(', ')}</li>
+              <li>{t('import.switched', { n: changed.length, names: changed.map((p) => name(p.courseId)).join(', ') })}</li>
             )}
             {removed.length > 0 && (
-              <li className="import-bad">− {removed.length} removed: {removed.map((c) => name(c.courseId)).join(', ')}</li>
+              <li className="import-bad">
+                {t('import.removed', { n: removed.length, names: removed.map((c) => name(c.courseId)).join(', ') })}
+              </li>
             )}
           </ul>
         )}
-        <span className="muted small">You can undo this afterwards (Undo or Ctrl+Z).</span>
+        <span className="muted small">{t('import.undoHint')}</span>
       </div>
 
       <div className="modal-actions">
         <button type="button" className="link-btn" onClick={onBack}>
-          Another file
+          {t('import.another')}
         </button>
         <button type="button" className="btn btn-quiet" onClick={onCancel}>
-          Don’t change
+          {t('import.dontChange')}
         </button>
         <button type="button" className="btn" disabled={nothingChanges} onClick={() => onApply(next)}>
-          Apply changes
+          {t('import.apply')}
         </button>
       </div>
     </>
   );
 }
-
-function timeLabel(minutes: number): string {
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-}
-

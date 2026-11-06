@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { DAY_LABEL, type Semester } from '../data/types';
+import type { Semester } from '../data/types';
+import { useI18n, type Translator } from '../i18n/I18n';
 import type { Sprint } from '../logic/campus';
 import { weeklyCommuteHours, type CreditsSummary } from '../logic/load';
 import { MISERY_WEIGHTS, type MiseryResult, type MiseryTitle } from '../logic/misery';
 import type { Conflict, PlacedMeeting } from '../logic/schedule';
-import { formatHours, sessionLabel, timeRange } from './format';
+import { group, hoursText, ltr, span, titleText } from './weekText';
 
 interface Props {
   semester: Semester;
@@ -18,36 +19,40 @@ interface Props {
   onCommuteMinutes: (minutes: number) => void;
 }
 
-function describe(m: PlacedMeeting): string {
-  if (m.isBlock) return `your block “${m.courseName}” (${timeRange(m.start, m.end)})`;
-  return `${m.courseName} (${sessionLabel(m.type, m.sectionNumber)}, ${timeRange(m.start, m.end)})`;
+function describe(tr: Translator, m: PlacedMeeting): string {
+  const time = span(tr, m.start, m.end);
+  if (m.isBlock) return tr.t('stats.yourBlock', { name: m.courseName, time });
+  return tr.t('stats.meeting', { name: m.courseName, group: group(tr, m.type, m.sectionNumber), time });
 }
 
 export function StatsBar(props: Props) {
   const { semester, misery, title, hours, credits, conflicts, sprints, commuteMinutes } = props;
+  const tr = useI18n();
+  const { t, day } = tr;
   const [editingCommute, setEditingCommute] = useState(false);
   const level = misery.score >= 70 ? 'high' : misery.score >= 40 ? 'mid' : 'low';
   const commute = weeklyCommuteHours(misery.campusDays, commuteMinutes);
+  const named = titleText(tr, title);
   const rows: [string, string, number][] = [
-    ['Days on campus', `${misery.campusDays} × ${MISERY_WEIGHTS.campusDay}`, misery.points.days],
-    ['Classes before 09:00', `${misery.earlyClasses} × ${MISERY_WEIGHTS.earlyClass}`, misery.points.early],
-    ['Window hours', `${misery.windowHours} × ${MISERY_WEIGHTS.windowHour}`, misery.points.windows],
-    ['Friday classes', misery.hasFriday ? 'yes' : 'no', misery.points.friday],
-    ['Classes ending after 18:00', `${misery.lateClasses} × ${MISERY_WEIGHTS.lateClass}`, misery.points.late],
+    [t('stats.days'), `${misery.campusDays} × ${MISERY_WEIGHTS.campusDay}`, misery.points.days],
+    [t('stats.early'), `${misery.earlyClasses} × ${MISERY_WEIGHTS.earlyClass}`, misery.points.early],
+    [t('stats.windows'), `${misery.windowHours} × ${MISERY_WEIGHTS.windowHour}`, misery.points.windows],
+    [t('stats.friday'), misery.hasFriday ? t('stats.yes') : t('stats.no'), misery.points.friday],
+    [t('stats.late'), `${misery.lateClasses} × ${MISERY_WEIGHTS.lateClass}`, misery.points.late],
   ];
 
   return (
     <div className="stats">
       <details className="misery" data-level={level}>
         <summary>
-          <span className="misery-score" aria-label={`Suffering index ${misery.score} of 100`}>
+          <span className="misery-score" aria-label={t('stats.scoreAria', { score: misery.score })}>
             {misery.score}
             <small>/100</small>
           </span>
           <span className="misery-text">
-            <span className="misery-label">Suffering index · Sem {semester}</span>
-            <span className="misery-title">{title.title}</span>
-            <span className="misery-blurb">{title.blurb}</span>
+            <span className="misery-label">{t('stats.label', { term: tr.term(semester) })}</span>
+            <span className="misery-title">{named.title}</span>
+            <span className="misery-blurb">{named.blurb}</span>
           </span>
         </summary>
         <table className="breakdown">
@@ -55,38 +60,37 @@ export function StatsBar(props: Props) {
             {rows.map(([label, calc, pts]) => (
               <tr key={label}>
                 <th scope="row">{label}</th>
-                <td>{calc}</td>
+                <td>{ltr(tr, calc)}</td>
                 <td className="pts">{pts}</td>
               </tr>
             ))}
             {misery.raw > misery.score && (
               <tr>
-                <th scope="row">Capped at 100</th>
-                <td>raw {misery.raw}</td>
+                <th scope="row">{t('stats.capped')}</th>
+                <td>{t('stats.raw', { n: misery.raw })}</td>
                 <td className="pts">{misery.score}</td>
               </tr>
             )}
           </tbody>
         </table>
-        {misery.conflictClusters > 0 && (
-          <p className="muted small">Overlapping classes count once — the heaviest one.</p>
-        )}
+        {misery.conflictClusters > 0 && <p className="muted small">{t('stats.overlapNote')}</p>}
       </details>
 
       <div className="kpis">
         <div className="kpi">
-          <span className="kpi-value">{formatHours(hours)}</span>
-          <span className="kpi-label">academic hrs / week</span>
+          <span className="kpi-value">{hoursText(tr, hours)}</span>
+          <span className="kpi-label">{t('stats.hours')}</span>
         </div>
         <div className="kpi">
-          <span className="kpi-value">{credits.total}</span>
+          <span className="kpi-value">{tr.num(credits.total)}</span>
           <span className="kpi-label">
-            credits, whole year{credits.unknown > 0 && ` (+${credits.unknown} unknown)`}
+            {t('stats.credits', { n: credits.total })}
+            {credits.unknown > 0 && t('stats.creditsUnknown', { n: credits.unknown })}
           </span>
         </div>
         <div className={`kpi ${conflicts.length > 0 ? 'kpi-warn' : ''}`}>
           <span className="kpi-value">{conflicts.length}</span>
-          <span className="kpi-label">{conflicts.length === 1 ? 'conflict' : 'conflicts'}</span>
+          <span className="kpi-label">{t('stats.conflicts', { n: conflicts.length })}</span>
         </div>
         <div className="kpi kpi-commute">
           {editingCommute ? (
@@ -98,8 +102,8 @@ export function StatsBar(props: Props) {
                 step={5}
                 inputMode="numeric"
                 defaultValue={commuteMinutes || ''}
-                placeholder="min"
-                aria-label="Commute one way, minutes"
+                placeholder={t('stats.minPlaceholder')}
+                aria-label={t('stats.commuteAria')}
                 autoFocus
                 onBlur={(e) => {
                   const v = Math.max(0, Math.min(300, Math.round(Number(e.target.value) || 0)));
@@ -110,7 +114,7 @@ export function StatsBar(props: Props) {
                   if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
                 }}
               />
-              <span className="kpi-label">min one way</span>
+              <span className="kpi-label">{t('stats.minOneWay')}</span>
             </label>
           ) : (
             <button
@@ -119,13 +123,13 @@ export function StatsBar(props: Props) {
               onClick={() => setEditingCommute(true)}
               aria-label={
                 commuteMinutes > 0
-                  ? `${formatHours(commute)} hours on the road per week, ${commuteMinutes} minutes one way. Change`
-                  : 'Set your commute time'
+                  ? t('stats.commuteButton', { h: hoursText(tr, commute), m: commuteMinutes })
+                  : t('stats.setCommute')
               }
             >
-              <span className="kpi-value">{commuteMinutes > 0 ? formatHours(commute) : '—'}</span>
+              <span className="kpi-value">{commuteMinutes > 0 ? hoursText(tr, commute) : '—'}</span>
               <span className="kpi-label">
-                {commuteMinutes > 0 ? `hrs on the road / week (${commuteMinutes} min one way)` : 'set commute time'}
+                {commuteMinutes > 0 ? t('stats.commuteLabel', { m: commuteMinutes }) : t('stats.setCommuteShort')}
               </span>
             </button>
           )}
@@ -133,24 +137,31 @@ export function StatsBar(props: Props) {
       </div>
 
       {conflicts.length > 0 && (
-        <ul className="conflicts" aria-label="Conflicts">
+        <ul className="conflicts" aria-label={t('stats.conflictsList')}>
           {conflicts.map(({ a, b }) => (
             <li key={`${a.key}|${b.key}`}>
-              <strong>{DAY_LABEL[a.day]}</strong> {describe(a)} overlaps {describe(b)}
+              <strong>{day(a.day)}</strong> {t('stats.overlaps', { a: describe(tr, a), b: describe(tr, b) })}
             </li>
           ))}
         </ul>
       )}
 
       {sprints.length > 0 && (
-        <ul className="sprints" aria-label="Tight walks between classes">
+        <ul className="sprints" aria-label={t('stats.sprintsList')}>
           {sprints.map((s) => (
             <li key={`${s.from.key}|${s.to.key}`}>
-              <strong>Run!</strong> {DAY_LABEL[s.day]} {timeRange(s.from.end, s.to.start)}: building {s.from.building} →{' '}
-              {s.to.building}, ≈{s.walk} min walk, {s.available} min to get there
+              <strong>{t('week.run')}</strong>{' '}
+              {t('stats.sprint', {
+                day: day(s.day),
+                time: span(tr, s.from.end, s.to.start),
+                from: s.from.building ?? '',
+                to: s.to.building ?? '',
+                walk: s.walk,
+                available: s.available,
+              })}
             </li>
           ))}
-          <li className="muted small">Experimental: walking times are rough estimates from the campus layout.</li>
+          <li className="muted small">{t('stats.experimental')}</li>
         </ul>
       )}
     </div>
