@@ -817,11 +817,50 @@ h3 {
 }
 
 .day-name {
-  padding: 8px 0;
+  padding: 6px 0;
   text-align: center;
   font-weight: 600;
   font-size: 12px;
   color: var(--muted);
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+
+/* Карта страданий недели: цвет заголовка дня по его индексу */
+.day-score {
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.day-name.heat-low {
+  background: color-mix(in srgb, var(--c2) 10%, transparent);
+}
+
+.day-name.heat-mid {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--text);
+}
+
+.day-name.heat-high {
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  color: var(--text);
+}
+
+.day-name.heat-mid .day-score {
+  border-color: var(--warn);
+}
+
+.day-name.heat-high .day-score,
+.day-name.hell .day-score {
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 .time-col {
@@ -1689,9 +1728,10 @@ h3 {
 /* ---------- Панель над сеткой ---------- */
 .week-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px 10px;
   margin-bottom: 10px;
 }
 
@@ -1701,6 +1741,354 @@ h3 {
 
 .btn-auto::before {
   content: '✦ ';
+}
+
+.toolbar-btns {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.btn-wrapped::before {
+  content: '★ ';
+  color: var(--accent);
+}
+
+/* ---------- Прогресс семестра и факты «Сегодня» ---------- */
+.progress {
+  margin: 4px 0 8px;
+}
+
+.progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+}
+
+.progress-label {
+  font-weight: 700;
+}
+
+.progress-bar {
+  margin-top: 4px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--c6));
+}
+
+.today-fact {
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.rain {
+  margin: 8px 0 0;
+  padding: 8px 12px 8px 28px;
+  border-radius: 10px;
+  border: 1px solid var(--c7);
+  background: color-mix(in srgb, var(--c7) 10%, var(--surface));
+  font-size: 13px;
+}
+
+/* ---------- Факты недели под сеткой ---------- */
+.insights {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.insight {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0;
+  font-size: 13px;
+}
+
+.insights > p.muted {
+  margin: 0;
+}
+
+.insight-icon {
+  flex: none;
+  width: 22px;
+  text-align: center;
+}
+
+.coffee-list {
+  margin: 4px 0 0;
+  padding-inline-start: 18px;
+  display: grid;
+  gap: 3px;
+}
+
+.map-cafe circle {
+  fill: var(--surface);
+  stroke: var(--c1);
+  stroke-width: 2;
+}
+
+.map-cafe text {
+  font-size: 12px;
+  text-anchor: middle;
+}
+
+/* ---------- Wrapped (сторис) ---------- */
+.wrapped {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 85%);
+}
+
+.wrapped:focus {
+  outline: none;
+}
+
+.story {
+  position: relative;
+  width: min(100vw, calc(100vh * 9 / 16));
+  height: min(100vh, calc(100vw * 16 / 9));
+  max-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+  background: radial-gradient(circle at 85% 12%, rgb(139 124 255 / 45%), transparent 45%),
+    radial-gradient(circle at 10% 85%, rgb(255 159 90 / 30%), transparent 45%),
+    linear-gradient(160deg, #2a1b6b, #141026 60%, #0f1115);
+}
+
+@media (min-width: 600px) {
+  .story {
+    border-radius: 20px;
+    height: min(92vh, 860px);
+    width: min(92vh * 9 / 16, 484px);
+  }
+}
+
+.story-hours { background-color: #1b1240; }
+.story-alarms {
+  background: radial-gradient(circle at 80% 15%, rgb(242 201 76 / 45%), transparent 45%),
+    linear-gradient(160deg, #3b2a10, #17120b 60%, #0f1115);
+}
+.story-walk {
+  background: radial-gradient(circle at 20% 15%, rgb(79 209 197 / 40%), transparent 45%),
+    linear-gradient(160deg, #0f3b39, #0d1717 60%, #0f1115);
+}
+.story-gaps {
+  background: radial-gradient(circle at 80% 80%, rgb(255 126 182 / 35%), transparent 45%),
+    linear-gradient(160deg, #3a1030, #160b14 60%, #0f1115);
+}
+.story-commute {
+  background: radial-gradient(circle at 25% 20%, rgb(110 168 254 / 40%), transparent 45%),
+    linear-gradient(160deg, #10264a, #0b1220 60%, #0f1115);
+}
+.story-hell {
+  background: radial-gradient(circle at 50% 30%, rgb(255 92 92 / 50%), transparent 50%),
+    linear-gradient(160deg, #4a0e0e, #1a0909 60%, #0f1115);
+}
+
+.story-top {
+  position: relative;
+  z-index: 3;
+  padding: 12px 14px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.story-bars {
+  display: flex;
+  gap: 4px;
+}
+
+.story-bars span {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 25%);
+}
+
+.story-bars span.done,
+.story-bars span.on {
+  background: #fff;
+}
+
+.story-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.story-controls .sem-tabs {
+  margin: 0;
+  background: rgb(0 0 0 / 25%);
+  border-color: rgb(255 255 255 / 15%);
+}
+
+.story-controls .sem-tabs button {
+  color: rgb(255 255 255 / 70%);
+}
+
+.story-controls .sem-tabs button.on {
+  background: rgb(255 255 255 / 18%);
+  color: #fff;
+}
+
+.story-controls .icon-btn {
+  background: rgb(0 0 0 / 25%);
+  border-color: rgb(255 255 255 / 15%);
+  color: #fff;
+}
+
+.story-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 28px;
+  text-align: center;
+}
+
+.story-kicker {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 70%);
+}
+
+.story-big {
+  margin: 0;
+  font-family: var(--font-hand);
+  font-size: clamp(64px, 18vh, 140px);
+  line-height: 0.95;
+  font-weight: 700;
+}
+
+.story-unit {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.story-line {
+  margin: 0;
+  font-size: 16px;
+  color: rgb(255 255 255 / 85%);
+}
+
+.story-score {
+  margin: 0;
+  font-family: var(--font-hand);
+  font-size: clamp(90px, 24vh, 190px);
+  line-height: 0.9;
+  font-weight: 700;
+}
+
+.story-score small {
+  font-family: var(--font-ui);
+  font-size: 22px;
+  color: rgb(255 255 255 / 60%);
+}
+
+.story-score.level-low { color: #7fd17f; }
+.story-score.level-mid { color: #f2c94c; }
+.story-score.level-high { color: #ff6b6b; }
+
+.story-title {
+  margin: 0;
+  font-family: var(--font-hand);
+  font-size: 40px;
+  font-weight: 700;
+}
+
+.story-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.story-grid span {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 8%);
+  font-size: 12px;
+  color: rgb(255 255 255 / 70%);
+}
+
+.story-grid b {
+  font-size: 22px;
+  color: #fff;
+}
+
+.story-actions {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.story-actions .btn-quiet {
+  color: #fff;
+  border-color: rgb(255 255 255 / 30%);
+}
+
+/* Невидимые зоны «назад / вперёд», как в сторис */
+.story-tap {
+  position: absolute;
+  top: 90px;
+  bottom: 40px;
+  z-index: 2;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.story-tap.prev {
+  left: 0;
+  width: 33%;
+}
+
+.story-tap.next {
+  right: 0;
+  width: 67%;
+}
+
+.story-tap:disabled {
+  cursor: default;
+}
+
+.story-foot {
+  position: relative;
+  z-index: 3;
+  margin: 0;
+  padding: 0 14px 12px;
+  font-size: 11px;
+  text-align: center;
+  color: rgb(255 255 255 / 50%);
 }
 
 .btn:disabled,

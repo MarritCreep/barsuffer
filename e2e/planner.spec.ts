@@ -6,7 +6,22 @@ async function shot(page: import('@playwright/test').Page, name: string) {
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${test.info().project.name}-${name}.png`, fullPage: true });
 }
 
+/** Прогноз Open-Meteo в тестах подменяется: сухо, без запросов в интернет. */
+function forecastBody(date: string, rainyHour?: number) {
+  const time = Array.from({ length: 24 }, (_, h) => `${date}T${String(h).padStart(2, '0')}:00`);
+  return JSON.stringify({
+    hourly: {
+      time,
+      precipitation_probability: time.map((_, h) => (h === rainyHour ? 85 : 5)),
+      precipitation: time.map((_, h) => (h === rainyHour ? 1.5 : 0)),
+    },
+  });
+}
+
 test.beforeEach(async ({ page }) => {
+  await page.route('**/api.open-meteo.com/**', (route) =>
+    route.fulfill({ contentType: 'application/json', body: forecastBody('2000-01-01') }),
+  );
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
   await page.reload();
@@ -281,6 +296,77 @@ test('map window can be moved, resized and maximized on desktop', async ({ page,
   const max = (await map.boundingBox())!;
   expect(max.width).toBeGreaterThan(1200);
   await map.getByRole('button', { name: 'Restore map size' }).click();
+});
+
+test('Wrapped: stories for a semester and the whole year, image export', async ({ page, isMobile }) => {
+  await page.clock.setFixedTime(new Date('2026-10-01T10:00:00')); // до семестра — прогноз
+  await seed(page, [
+    ['63013', { lecture: '18' }], // A: вт 08–10
+    ['183138', { lecture: '01' }], // A: вт 12–14 → окно 2 ч
+    ['63009', { lecture: '18' }], // B: вт 08–10
+  ]);
+  if (isMobile) await page.getByRole('button', { name: /^Week/ }).click();
+  await page.getByRole('button', { name: 'Wrapped' }).click();
+  const story = page.getByRole('dialog', { name: 'BarSuffer Wrapped' });
+  await expect(story.getByText('It hasn’t started yet. Here’s what’s coming.')).toBeVisible();
+  await shot(page, '16-wrapped-intro');
+
+  await story.getByRole('button', { name: 'Next slide' }).click();
+  await expect(story.locator('.story-big')).toHaveText('56'); // 14 вторников × 4 часа
+  await expect(story.getByText('You will spend')).toBeVisible();
+
+  await story.getByRole('tab', { name: 'Year' }).click();
+  await story.getByRole('button', { name: 'Next slide' }).click();
+  await expect(story.locator('.story-big')).toHaveText(String(56 + 17 * 2));
+
+  // До последнего слайда и сохранить картинку.
+  for (let i = 0; i < 10; i++) {
+    const next = story.getByRole('button', { name: 'Next slide' });
+    if (await next.isDisabled()) break;
+    await next.click();
+  }
+  await expect(story.getByRole('button', { name: 'Save image' })).toBeVisible();
+  await shot(page, '17-wrapped-final');
+  const download = page.waitForEvent('download');
+  await story.getByRole('button', { name: 'Save image' }).click();
+  expect((await download).suggestedFilename()).toBe('barsuffer-wrapped-year.png');
+
+  await page.keyboard.press('Escape');
+  await expect(story).toHaveCount(0);
+});
+
+test('week insights: heat map, hell day, walking, coffee in the gap', async ({ page, isMobile }) => {
+  await seed(page, [
+    ['63013', { lecture: '18' }], // вт 08–10, 105
+    ['183138', { lecture: '01' }], // вт 12–14, 604
+    ['63256', { lecture: '18' }], // ср 14–16, 105
+  ]);
+  if (isMobile) await page.getByRole('button', { name: /^Week/ }).click();
+  await expect(page.locator('.day-name.hell')).toContainText('Tue');
+  await expect(page.locator('.day-name.hell .day-score')).toContainText('20'); // 8 + 6 + 2×3
+  await expect(page.locator('.insights')).toContainText('Tuesday is your hell day');
+  await expect(page.locator('.insights')).toContainText('steps');
+  await expect(page.locator('.coffee-list li')).toHaveCount(1);
+  await expect(page.locator('.coffee-list')).toContainText('for coffee');
+  await shot(page, '18-insights');
+});
+
+test('today: semester progress and a rain warning', async ({ page, isMobile }) => {
+  await page.clock.setFixedTime(new Date('2026-11-11T09:00:00')); // среда
+  await page.route('**/api.open-meteo.com/**', (route) =>
+    route.fulfill({ contentType: 'application/json', body: forecastBody('2026-11-11', 16) }),
+  );
+  await seed(page, [
+    ['63256', { lecture: '18' }], // ср 14–16, 105
+    ['99003', { lecture: '01' }], // ср 16–18, 901
+  ]);
+  if (isMobile) await page.getByRole('button', { name: 'Today' }).click();
+  const today = page.locator('.today');
+  await expect(today.locator('.progress')).toContainText('week 5 of 15');
+  await expect(today.locator('.rain')).toContainText('Take an umbrella');
+  await expect(today.locator('.rain')).toContainText('105 → 901');
+  await expect(today).toContainText('Walking today');
+  await shot(page, '19-today-rain');
 });
 
 test('real sample schedule renders with conflicts, theme toggles', async ({ page, isMobile }) => {

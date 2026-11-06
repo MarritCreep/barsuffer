@@ -1,6 +1,8 @@
 import { MISERY_WEIGHTS, type MiseryWeights } from '../logic/misery';
 
 const KEY = 'barsuffer:settings:v1';
+/** Раньше ворота хранились отдельно картой — подхватываем старое значение. */
+const LEGACY_GATE_KEY = 'barsuffer:map-gate';
 
 /** Личные настройки, только в браузере. */
 export interface Settings {
@@ -8,24 +10,31 @@ export interface Settings {
   commuteMinutes: number;
   /** Свои веса индекса для автоподбора. */
   weights: MiseryWeights;
+  /** Через какие ворота студент входит в кампус ('' — не учитывать). */
+  gate: string;
 }
 
-export const DEFAULT_SETTINGS: Settings = { commuteMinutes: 0, weights: { ...MISERY_WEIGHTS } };
+export const DEFAULT_SETTINGS: Settings = { commuteMinutes: 0, weights: { ...MISERY_WEIGHTS }, gate: '' };
 
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw) as Partial<Settings>;
+    const parsed = (raw ? JSON.parse(raw) : {}) as Partial<Settings>;
     const weights: MiseryWeights = { ...MISERY_WEIGHTS };
     for (const k of Object.keys(weights) as (keyof MiseryWeights)[]) {
       const v = parsed.weights?.[k];
       if (typeof v === 'number' && v >= 0 && v <= 50) weights[k] = v;
     }
     const commute = parsed.commuteMinutes;
+    let gate = typeof parsed.gate === 'string' ? parsed.gate : '';
+    if (!raw) {
+      const legacy = localStorage.getItem(LEGACY_GATE_KEY);
+      if (legacy) gate = JSON.parse(legacy) as string;
+    }
     return {
       commuteMinutes: typeof commute === 'number' && commute >= 0 && commute <= 300 ? commute : 0,
       weights,
+      gate: /^gate-\d+$/.test(gate) ? gate : '',
     };
   } catch {
     return DEFAULT_SETTINGS;

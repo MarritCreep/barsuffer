@@ -3,8 +3,10 @@ import { catalog, courseMap } from '../data/catalog';
 import type { Course, Semester } from '../data/types';
 import { blockMeetings, isBlockId, nextBlockId } from '../logic/blocks';
 import { findSprints } from '../logic/campus';
+import { coffeeGaps } from '../logic/coffee';
 import { academicHours, totalCredits } from '../logic/load';
-import { computeMisery, pickTitle } from '../logic/misery';
+import { computeMisery, dayMisery, hellDay, pickTitle } from '../logic/misery';
+import { weekWalkMeters } from '../logic/walking';
 import { collectMeetings, collectUnscheduled, findConflicts, type TimeSpan } from '../logic/schedule';
 import { hourSlot, optionsForSlot } from '../logic/slots';
 import { formatMinutes } from '../logic/time';
@@ -20,7 +22,10 @@ import { planReducer } from './planReducer';
 import { SlotSheet } from './SlotSheet';
 import { StatsBar } from './StatsBar';
 import { TodayPanel } from './TodayPanel';
+import { useForecast } from './useForecast';
 import { WeekGrid } from './WeekGrid';
+import { WeekInsights } from './WeekInsights';
+import { Wrapped } from './Wrapped';
 
 type MobileTab = 'today' | 'courses' | 'week';
 
@@ -50,6 +55,8 @@ export function App() {
   const now = useNow();
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [autoPickOpen, setAutoPickOpen] = useState(false);
+  const [wrappedOpen, setWrappedOpen] = useState(false);
+  const forecast = useForecast();
   const [theme, setTheme] = useState<Theme>(loadTheme);
   const [semester, setSemester] = useState<Semester>(() => semesterOn(new Date()) ?? 'A');
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -77,6 +84,10 @@ export function App() {
   const conflicts = useMemo(() => findConflicts(busy), [busy]);
   const sprints = useMemo(() => findSprints(meetings), [meetings]);
   const misery = useMemo(() => computeMisery(meetings), [meetings]);
+  const dayScores = useMemo(() => dayMisery(meetings), [meetings]);
+  const hell = useMemo(() => hellDay(meetings), [meetings]);
+  const weekMeters = useMemo(() => weekWalkMeters(meetings, settings.gate || undefined), [meetings, settings.gate]);
+  const gaps = useMemo(() => coffeeGaps(meetings), [meetings]);
   const title = pickTitle(misery, meetings.length);
   const hours = academicHours(meetings);
   const credits = totalCredits(plan, courseMap);
@@ -116,6 +127,7 @@ export function App() {
         setActiveId(null);
         setSlot(null);
         setAutoPickOpen(false);
+        setWrappedOpen(false);
         return;
       }
       if (!(e.ctrlKey || e.metaKey) || e.altKey || isTyping(e.target)) return;
@@ -166,7 +178,7 @@ export function App() {
         <div className="right-col">
         {/* На десктопе «Сегодня» над индексом, чтобы всегда было видно; на телефоне — своя вкладка. */}
         <section className="pane pane-today" aria-label="Today">
-          <TodayPanel now={now} meetingsFor={busyFor} />
+          <TodayPanel now={now} meetingsFor={busyFor} forecast={forecast} gate={settings.gate} />
         </section>
         <section className="pane pane-week" aria-label="Week">
           <StatsBar
@@ -210,7 +222,15 @@ export function App() {
             }}
             onRemove={remove}
             sprints={sprints}
+            dayScores={dayScores}
+            hellDay={hell?.day ?? null}
+            onWrapped={() => {
+              setActiveId(null);
+              setSlot(null);
+              setWrappedOpen(true);
+            }}
           />
+          <WeekInsights hell={hell} weekMeters={weekMeters} gaps={gaps} />
         </section>
         </div>
       </main>
@@ -266,8 +286,22 @@ export function App() {
         meetingsFor={classesFor}
         initialSemester={todaySemester ?? semester}
         initialDay={todaySemester ? dayOf(now) : null}
-        hidden={slot !== null || autoPickOpen}
+        hidden={slot !== null || autoPickOpen || wrappedOpen}
+        gate={settings.gate}
+        onGate={(gate) => setSettings((s) => ({ ...s, gate }))}
       />
+
+      {wrappedOpen && (
+        <Wrapped
+          plan={plan}
+          courses={courseMap}
+          commuteMinutes={settings.commuteMinutes}
+          gate={settings.gate}
+          now={now}
+          initialScope={semester}
+          onClose={() => setWrappedOpen(false)}
+        />
+      )}
 
       <footer className="footer">
         <p>

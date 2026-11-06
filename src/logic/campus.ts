@@ -71,15 +71,25 @@ export function pointOf(id?: string): [number, number] | undefined {
   return BUILDING_XY[id] ?? GATES[id];
 }
 
-/** Примерные минуты пешком между зданиями или воротами; null — точка неизвестна схеме. */
-export function walkMinutes(from?: string, to?: string): number | null {
+/** Примерное расстояние пешком в метрах между точками схемы. */
+export function walkMetersXY(a: [number, number], b: [number, number]): number {
+  return Math.hypot(a[0] - b[0], a[1] - b[1]) * WALK.metersPerPx * WALK.routeFactor;
+}
+
+/** Примерные метры пешком между зданиями или воротами; null — точка неизвестна схеме. */
+export function walkMeters(from?: string, to?: string): number | null {
   if (!from || !to) return null;
   if (from === to) return 0;
   const a = pointOf(from);
   const b = pointOf(to);
   if (!a || !b) return null;
-  const px = Math.hypot(a[0] - b[0], a[1] - b[1]);
-  return Math.round((px * WALK.metersPerPx * WALK.routeFactor) / WALK.metersPerMinute);
+  return walkMetersXY(a, b);
+}
+
+/** Примерные минуты пешком между зданиями или воротами; null — точка неизвестна схеме. */
+export function walkMinutes(from?: string, to?: string): number | null {
+  const m = walkMeters(from, to);
+  return m === null ? null : Math.round(m / WALK.metersPerMinute);
 }
 
 export interface Sprint {

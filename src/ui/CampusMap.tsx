@@ -9,7 +9,9 @@ import {
   pointOf,
   walkMinutes,
 } from '../logic/campus';
+import { CAFES } from '../logic/coffee';
 import type { PlacedMeeting } from '../logic/schedule';
+import { dayWalkMeters, formatDistance, stepsFor } from '../logic/walking';
 import { place, sessionLabel, timeRange } from './format';
 
 interface Props {
@@ -19,6 +21,9 @@ interface Props {
   /** День, который открыть по умолчанию (например, сегодня). */
   initialDay: Day | null;
   hidden: boolean;
+  /** Ворота входа (общая настройка); '' — без ворот. */
+  gate: string;
+  onGate: (gate: string) => void;
 }
 
 type DayChoice = Day | 'week';
@@ -31,7 +36,6 @@ interface Rect {
 }
 
 const WINDOW_KEY = 'barsuffer:map-window:v1';
-const GATE_KEY = 'barsuffer:map-gate';
 const MIN_W = 420;
 const MIN_H = 380;
 
@@ -142,12 +146,12 @@ function clampRect(r: Rect): Rect {
   };
 }
 
-export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden }: Props) {
+export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, gate, onGate }: Props) {
   const desktop = useDesktop();
   const [open, setOpen] = useState(false);
   const [semester, setSemester] = useState<Semester>(initialSemester);
   const [choice, setChoice] = useState<DayChoice>(initialDay ?? 'week');
-  const [gate, setGate] = useState<string>(() => readJSON<string>(GATE_KEY) ?? '');
+  const setGate = onGate;
   const [wholeCampus, setWholeCampus] = useState(false);
   const [rect, setRect] = useState<Rect | null>(() => readJSON<Rect>(WINDOW_KEY));
   const [maximized, setMaximized] = useState(false);
@@ -167,8 +171,6 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden }: 
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
-
-  useEffect(() => writeJSON(GATE_KEY, gate), [gate]);
 
   const meetings = useMemo(() => meetingsFor(semester).filter((m) => !m.isBlock), [meetingsFor, semester]);
   const journey = choice === 'week' ? null : dayJourney(meetings, choice, gate || undefined);
@@ -419,6 +421,16 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden }: 
             </g>
           ))}
 
+          {CAFES.map((c) => (
+            <g key={c.id} className="map-cafe">
+              <title>{c.label}</title>
+              <circle cx={c.xy[0]} cy={c.xy[1]} r={9} />
+              <text x={c.xy[0]} y={c.xy[1] + 5}>
+                ☕
+              </text>
+            </g>
+          ))}
+
           {/* Маршрут: непрерывная линия со стрелками от начала дня до конца */}
           {legLines.map((leg, i) => {
             const t = trimmed(leg.from.xy, leg.to.xy, isGateId(leg.from.id) ? 12 : 20, isGateId(leg.to.id) ? 14 : 22);
@@ -470,7 +482,15 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden }: 
                 {[gate && gateLabel(gate), ...journey.stops.map((m) => m.building ?? '?'), gate && gateLabel(gate)]
                   .filter(Boolean)
                   .join(' → ')}
-                <span className="muted"> · ≈{journey.totalWalk} min walking</span>
+                <span className="muted">
+                  {' '}
+                  · ≈{journey.totalWalk} min walking
+                  {choice !== 'week' &&
+                    (() => {
+                      const meters = dayWalkMeters(meetings, choice, gate || undefined);
+                      return meters > 0 ? ` · ${formatDistance(meters)} · ${stepsFor(meters).toLocaleString('en-US')} steps` : '';
+                    })()}
+                </span>
               </p>
               <ol className="route">
                 {gate && journey.stops.length > 0 && (

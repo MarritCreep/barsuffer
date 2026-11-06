@@ -38,6 +38,14 @@ interface Props {
   onRemove: (courseId: string) => void;
   /** Переходы, на которые не хватает времени («Беги!»). */
   sprints: Sprint[];
+  /** Индекс каждого дня — «карта страданий недели». */
+  dayScores: Map<Day, number>;
+  hellDay: Day | null;
+  onWrapped: () => void;
+}
+
+function heatLevel(score: number): 'low' | 'mid' | 'high' {
+  return score >= 25 ? 'high' : score >= 15 ? 'mid' : 'low';
 }
 
 interface Block extends PlacedMeeting {
@@ -125,9 +133,14 @@ export function WeekGrid(props: Props) {
             </button>
           ))}
         </div>
-        <button type="button" className="btn btn-auto" onClick={props.onAutoPick}>
-          Auto-pick
-        </button>
+        <span className="toolbar-btns">
+          <button type="button" className="btn btn-quiet btn-wrapped" onClick={props.onWrapped}>
+            Wrapped
+          </button>
+          <button type="button" className="btn btn-auto" onClick={props.onAutoPick}>
+            Auto-pick
+          </button>
+        </span>
       </div>
 
       {activeCourse && planned && (
@@ -178,11 +191,26 @@ export function WeekGrid(props: Props) {
       <div className="grid" role="grid" aria-label={`Week, semester ${semester}`}>
         <div className="grid-head" role="row">
           <span className="corner" />
-          {DAYS.map((d) => (
-            <span key={d} className="day-name" role="columnheader">
-              {DAY_LABEL[d]}
-            </span>
-          ))}
+          {DAYS.map((d) => {
+            const score = props.dayScores.get(d);
+            const hell = props.hellDay === d;
+            return (
+              <span
+                key={d}
+                className={`day-name ${score !== undefined ? `heat-${heatLevel(score)}` : ''} ${hell ? 'hell' : ''}`}
+                role="columnheader"
+                title={score !== undefined ? `${DAY_LABEL[d]}: ${score} suffering points${hell ? ' — hell day' : ''}` : undefined}
+              >
+                <span>{DAY_LABEL[d]}</span>
+                {score !== undefined && (
+                  <span className="day-score">
+                    {hell && <span aria-hidden="true">🔥</span>}
+                    {score}
+                  </span>
+                )}
+              </span>
+            );
+          })}
         </div>
         <div className="grid-body">
           <div className="time-col" aria-hidden="true">

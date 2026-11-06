@@ -114,6 +114,27 @@ export function computeMisery(
   };
 }
 
+/** Индекс каждого дня отдельно (день в кампусе, ранние, окна, пятница, поздние) — для «карты страданий». */
+export function dayMisery(
+  meetings: readonly TimeSpan[],
+  weights: MiseryWeights = MISERY_WEIGHTS,
+): Map<Day, number> {
+  const byDay = new Map<Day, TimeSpan[]>();
+  for (const m of meetings) byDay.set(m.day, [...(byDay.get(m.day) ?? []), m]);
+  const result = new Map<Day, number>();
+  for (const [day, list] of byDay) result.set(day, computeMisery(list, weights).raw);
+  return result;
+}
+
+/** Самый мучительный день недели или null, если занятий нет. */
+export function hellDay(meetings: readonly TimeSpan[]): { day: Day; score: number } | null {
+  let best: { day: Day; score: number } | null = null;
+  for (const [day, score] of dayMisery(meetings)) {
+    if (!best || score > best.score || (score === best.score && day < best.day)) best = { day, score };
+  }
+  return best;
+}
+
 export interface MiseryTitle {
   id: string;
   title: string;
