@@ -113,8 +113,16 @@ export function App() {
   // Пример расписания — только посмотреть: пока он открыт, ничего не сохраняется, а своё расписание
   // возвращается кнопкой (или просто перезагрузкой страницы — в хранилище оно не тронуто).
   const [sample, setSample] = useState<{ previous: Plan } | null>(null);
+  // Только что загруженный план не записываем обратно: иначе новая вкладка при открытии могла бы затереть
+  // изменение, которое другая вкладка успела сохранить за эти миллисекунды.
+  // Сравниваем с тем, что записано последним (по содержимому).
+  const lastSaved = useRef(JSON.stringify(plan));
   useEffect(() => {
-    if (!sample) savePlan(plan);
+    if (sample) return;
+    const json = JSON.stringify(plan);
+    if (json === lastSaved.current) return;
+    lastSaved.current = json;
+    savePlan(plan);
   }, [plan, sample]);
   useEffect(() => saveSettings(settings), [settings]);
 
@@ -125,6 +133,7 @@ export function App() {
     const onStorage = (e: StorageEvent) => {
       if (e.key !== PLAN_KEY) return;
       const fresh = loadPlan();
+      lastSaved.current = JSON.stringify(fresh);
       if (sampleRef.current) setSample({ previous: fresh });
       else dispatch({ kind: 'replacePlan', plan: fresh });
     };
@@ -168,6 +177,26 @@ export function App() {
 
   // Оформление применяется сразу (в том числе предпросмотр), сохраняется только по «Apply».
   useEffect(() => applyAppearance(appearance), [appearance]);
+
+  // Курс без единой выбранной группы не взят: когда выбор групп заканчивается («Done», Esc, другой курс,
+  // клетка сетки), такой курс убирается из списка, с Undo в уведомлении.
+  const pickingRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = pickingRef.current;
+    pickingRef.current = activeId;
+    if (!prev || prev === activeId) return;
+    const pc = plan.courses.find((c) => c.courseId === prev);
+    if (!pc || Object.values(pc.picks).some((v) => v !== undefined)) return;
+    const previous = plan;
+    dispatch({ kind: 'remove', courseId: prev });
+    setNotice({
+      text: t('notice.notTaken', { name: courseMap.get(prev)?.name ?? prev }),
+      kind: 'ok',
+      undo: () => dispatch({ kind: 'replacePlan', plan: previous }),
+    });
+    // Срабатывает только при смене выбранного курса; plan и t берутся текущие.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeId]);
 
   // Выбранный курс мог быть удалён.
   const activeCourse = activeId && plan.courses.some((c) => c.courseId === activeId)

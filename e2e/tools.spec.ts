@@ -62,6 +62,30 @@ test('the tour sample never overwrites your own schedule', async ({ page, isMobi
   await expect.poll(() => savedPlan(page)).toBe(mine);
 });
 
+test('a course with no group picked is not kept after Done', async ({ page, isMobile }) => {
+  // У 63013 две лекции — сама группа не выбирается.
+  await page.getByRole('searchbox', { name: 'Search courses' }).fill('63013');
+  await page.getByRole('button', { name: '+ Add' }).first().click();
+  await expect(page.locator('.event.ghost')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Done' }).click();
+  await expect(page.getByText('“Language and Communication” wasn’t added — no group was picked.')).toBeVisible();
+  if (isMobile) await page.getByRole('button', { name: /^Courses/ }).click();
+  await expect(page.locator('.my-course')).toHaveCount(0);
+  expect(await savedPlan(page)).not.toContain('63013');
+
+  // Передумал — Undo возвращает курс (без группы, её можно выбрать потом).
+  await page.getByRole('status').getByRole('button', { name: 'Undo' }).click();
+  await expect(page.locator('.my-course')).toHaveCount(1);
+
+  // С выбранной группой курс остаётся.
+  await page.locator('.my-course-main').first().click();
+  await page.getByRole('button', { name: /Option:.*Lecture 18/ }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+  if (isMobile) await page.getByRole('button', { name: /^Courses/ }).click();
+  await expect(page.locator('.my-course')).toHaveCount(1);
+  expect(await savedPlan(page)).toContain('63013');
+});
+
 test('“Clear all” can be undone from the notice', async ({ page, isMobile }) => {
   await page.evaluate(() =>
     localStorage.setItem('barsuffer:plan:v1', JSON.stringify({ v: 1, courses: [{ courseId: '63013', color: 0, picks: { lecture: '18' } }] })),
@@ -78,6 +102,7 @@ test('two tabs: a change in one tab shows up in the other instead of being overw
   const other = await context.newPage();
   await other.route('**/api.open-meteo.com/**', (route) => route.fulfill({ contentType: 'application/json', body: forecastBody('2000-01-01') }));
   await other.goto('/');
+  await expect(other.getByRole('searchbox', { name: 'Search courses' })).toBeVisible();
   await page.getByRole('searchbox', { name: 'Search courses' }).fill('63013');
   await page.getByRole('button', { name: '+ Add' }).first().click();
   if (isMobile) await other.getByRole('button', { name: /^Courses/ }).click();

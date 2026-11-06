@@ -100,6 +100,7 @@ const en = {
   'notice.loaded': { one: 'Loaded {n} course from the file.', other: 'Loaded {n} courses from the file.' },
   'notice.undone': 'Undone — your previous schedule is back.',
   'notice.cleared': 'All courses removed. Changed your mind? Undo.',
+  'notice.notTaken': '“{name}” wasn’t added — no group was picked.',
 
   'footer.unofficial': 'Unofficial draft planner.',
   'footer.text':
@@ -211,6 +212,7 @@ const ru: Dict<typeof en> = {
   },
   'notice.undone': 'Отменено — прежнее расписание вернулось.',
   'notice.cleared': 'Все курсы убраны. Передумали? «Отменить».',
+  'notice.notTaken': '«{name}» не добавлен — не выбрана ни одна группа.',
 
   'footer.unofficial': 'Неофициальный черновой планировщик.',
   'footer.text':
@@ -317,6 +319,7 @@ const he: Dict<typeof en> = {
   'notice.loaded': { one: 'נטען קורס אחד מהקובץ.', other: 'נטענו {n} קורסים מהקובץ.' },
   'notice.undone': 'בוטל — המערכת הקודמת חזרה.',
   'notice.cleared': 'כל הקורסים הוסרו. התחרטתם? „ביטול פעולה”.',
+  'notice.notTaken': '„{name}” לא נוסף — לא נבחרה אף קבוצה.',
 
   'footer.unofficial': 'מתכנן טיוטה לא רשמי.',
   'footer.text':
