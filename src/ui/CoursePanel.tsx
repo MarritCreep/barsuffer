@@ -1,7 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Catalog, Course } from '../data/types';
 import { useI18n } from '../i18n/I18n';
+import type { MessageKey } from '../i18n/messages';
+import { activeCount, buildFacets, filterCourses, matchQuery, sanitizeFilter, type CourseFilter } from '../logic/filters';
 import { findSection, missingTypes, requiredTypes, type Plan } from '../logic/selection';
+import { CourseFilters } from './CourseFilters';
 
 interface Props {
   catalog: Catalog;
@@ -17,24 +20,39 @@ interface Props {
   onOpenFile: (file: File) => void;
 }
 
-/** Поиск по названию, номеру курса (с дефисами или без) и преподавателю. */
-export function matchCourse(course: Course, query: string): boolean {
-  const q = query.trim().toLowerCase();
-  if (!q) return true;
-  const digits = q.replace(/[\s-]/g, '');
-  if (/^\d+$/.test(digits) && course.courseId.includes(digits)) return true;
-  if (course.name.toLowerCase().includes(q)) return true;
-  return course.sections.some((s) => s.lecturer?.toLowerCase().includes(q));
+/** Поиск по названию, номеру курса и преподавателю (логика — в filters.ts). */
+export const matchCourse = matchQuery;
+
+const FILTER_KEY = 'barsuffer:filters:v1';
+
+function loadFilter(): CourseFilter {
+  try {
+    return sanitizeFilter(JSON.parse(localStorage.getItem(FILTER_KEY) ?? 'null'));
+  } catch {
+    return sanitizeFilter(null);
+  }
 }
 
 export function CoursePanel(props: Props) {
   const { catalog, plan, activeId, onAdd, onRemove, onPick, onClear, onSetHidden } = props;
   const { t, type, term } = useI18n();
-  const [query, setQuery] = useState('');
+  const [filter, setFilter] = useState<CourseFilter>(loadFilter);
+  const [filtersOpen, setFiltersOpen] = useState(() => activeCount(loadFilter()) > 0);
+  const query = filter.query;
+  const setQuery = (q: string) => setFilter((f) => ({ ...f, query: q }));
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTER_KEY, JSON.stringify({ ...filter, query: '' }));
+    } catch {
+      /* не запомнится */
+    }
+  }, [filter]);
+  const facets = useMemo(() => buildFacets(catalog), [catalog]);
+  const active = activeCount(filter);
   const planned = new Set(plan.courses.map((c) => c.courseId));
   const results = useMemo(
-    () => catalog.courses.filter((c) => matchCourse(c, query)),
-    [catalog.courses, query],
+    () => filterCourses(catalog.courses, filter, { catalog }),
+    [catalog, filter],
   );
   const courseById = useMemo(() => new Map(catalog.courses.map((c) => [c.courseId, c])), [catalog.courses]);
 
@@ -160,6 +178,19 @@ export function CoursePanel(props: Props) {
           onChange={(e) => setQuery(e.target.value)}
           aria-label={t('courses.searchAria')}
         />
+        <div className="filter-bar">
+          <button
+            type="button"
+            className={`btn btn-quiet btn-small filter-toggle ${active ? 'has-active' : ''}`}
+            aria-expanded={filtersOpen}
+            onClick={() => setFiltersOpen((o) => !o)}
+          >
+            {t('filters.button')}
+            {active > 0 && <span className="count">{active}</span>}
+          </button>
+          <span className="muted small">{t('filters.count', { n: results.length })}</span>
+        </div>
+        {filtersOpen && <CourseFilters facets={facets} filter={filter} onChange={setFilter} catalog={catalog} />}
         <ul className="results">
           {results.map((course) => {
             const added = planned.has(course.courseId);
@@ -174,6 +205,15 @@ export function CoursePanel(props: Props) {
                     {course.courseId} · {term(course.term)} · {t('courses.groups', { n: course.sections.length })}
                     {course.isDemo && <span className="demo-tag">{t('common.demo')}</span>}
                   </span>
+                  {(course.categories?.length ?? 0) > 0 && (
+                    <span className="result-tags">
+                      {course.categories!.map((c) => (
+                        <span key={c} className="cat-tag">
+                          {t(`filters.cat.${c}` as MessageKey)}
+                        </span>
+                      ))}
+                    </span>
+                  )}
                   {lecturers && <span className="result-meta">{lecturers}</span>}
                 </div>
                 {added ? (
@@ -188,7 +228,9 @@ export function CoursePanel(props: Props) {
               </li>
             );
           })}
-          {results.length === 0 && <li className="empty">{t('courses.noMatch', { query })}</li>}
+          {results.length === 0 && (
+            <li className="empty">{active > 0 ? t('filters.none') : t('courses.noMatch', { query })}</li>
+          )}
         </ul>
       </div>
     </div>

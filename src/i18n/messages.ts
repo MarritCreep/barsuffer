@@ -6,6 +6,7 @@ import degree from './areas/degree';
 import dialogs from './areas/dialogs';
 import exams from './areas/exams';
 import features from './areas/features';
+import filters from './areas/filters';
 import map from './areas/map';
 import today from './areas/today';
 import week from './areas/week';
@@ -27,6 +28,7 @@ const en = {
   ...attendance.en,
   ...exams.en,
   ...degree.en,
+  ...filters.en,
 };
 
 export type MessageKey = keyof typeof en;
@@ -45,6 +47,7 @@ export const MESSAGES: Record<Lang, Record<MessageKey, Msg>> = {
     ...attendance.ru,
     ...exams.ru,
     ...degree.ru,
+    ...filters.ru,
   },
   he: {
     ...common.he,
@@ -58,5 +61,6 @@ export const MESSAGES: Record<Lang, Record<MessageKey, Msg>> = {
     ...attendance.he,
     ...exams.he,
     ...degree.he,
+    ...filters.he,
   },
 };

@@ -33,6 +33,25 @@ export interface Meeting {
    * Если не указано — встреча идёт во всех семестрах курса.
    */
   semester?: Semester;
+  /** Встреча онлайн (Zoom): здания нет. */
+  online?: boolean;
+}
+
+/**
+ * Категория курса вне кафедры: Оламот (бывш. «Основы иудаики») или общий курс (General),
+ * открытый студентам разных кафедр. Курс может быть в обеих.
+ */
+export type CourseCategory = 'olamot' | 'general';
+
+/** Факультет или кафедра. Названия — как в официальных данных (англ. и, если есть, иврит). */
+export interface OrgUnit {
+  id: string;
+  name: string;
+  nameHe?: string;
+}
+
+export interface Department extends OrgUnit {
+  facultyId?: string;
 }
 
 export interface Section {
@@ -50,6 +69,8 @@ export interface Section {
   linkedTo?: string[];
   /** Группа придумана для демонстрации, в реальном каталоге её нет. */
   isDemo?: boolean;
+  /** Ссылка на силлабус (в официальной карточке — «See Syllabus»), у каждой группы своя. */
+  syllabusUrl?: string;
 }
 
 export interface Exam {
@@ -68,6 +89,15 @@ export interface Course {
   exams?: { moedA?: Exam; moedB?: Exam };
   /** Курс целиком придуман для демонстрации. */
   isDemo?: boolean;
+  /** Кафедра (id из `Catalog.departments`). Поля ниже необязательны: фильтр по ним появляется, только если они есть в данных. */
+  departmentId?: string;
+  /** Факультет; если не указан — берётся у кафедры. */
+  facultyId?: string;
+  categories?: CourseCategory[];
+  /** Язык преподавания, код BCP 47: "he", "en", "ar"… */
+  language?: string;
+  /** «Course Academic Hours» из официальной карточки: недельные часы по семестрам, например { B: 2 }. */
+  academicHours?: Partial<Record<Semester, number>>;
 }
 
 export interface CatalogMetadata {
@@ -85,6 +115,8 @@ export interface CatalogMetadata {
 export interface Catalog {
   metadata: CatalogMetadata;
   courses: Course[];
+  faculties?: OrgUnit[];
+  departments?: Department[];
 }
 
 export const SESSION_TYPE_LABEL: Record<SessionType, string> = {

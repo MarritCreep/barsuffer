@@ -66,6 +66,9 @@ test('tap an empty cell to see what fits there', async ({ page, isMobile }) => {
 
   await page.getByRole('button', { name: /What fits on Wed 14:00/ }).click();
   const sheet = page.getByRole('dialog', { name: 'Courses for this time slot' });
+  // Сначала фильтр, потом список.
+  await expect(sheet.getByText('Filter courses for Wednesday 14:00–15:00')).toBeVisible();
+  await sheet.getByRole('button', { name: 'Show 2 courses' }).click();
   await expect(sheet.locator('.slot-item')).toHaveCount(2);
   await shot(page, '08-slot');
 

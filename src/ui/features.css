@@ -472,3 +472,148 @@
   opacity: 0.5;
   text-decoration: line-through;
 }
+
+/* ---------- Фильтры курсов ---------- */
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.filter-toggle.has-active {
+  border-color: var(--accent);
+}
+
+.course-filters {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.filter-group {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.filter-group legend {
+  padding: 0;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filter-group.long .filter-chips {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.filter-chip {
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.filter-chip.on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  font-weight: 600;
+}
+
+.filter-n {
+  color: var(--muted);
+  font-size: 11px;
+  margin-inline-start: 2px;
+}
+
+.filter-search {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+
+.filter-time {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.filter-time select {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+}
+
+.result-tags {
+  display: flex;
+  gap: 4px;
+}
+
+.cat-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--text);
+}
+
+.slot-filter {
+  display: grid;
+  gap: 8px;
+  padding: 0 14px 14px;
+  overflow-y: auto;
+}
+
+.slot-filter p {
+  margin: 0;
+}
+
+.slot-filter .course-filters {
+  margin: 0;
+}
+
+.slot-filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.slot-list-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 6px;
+}

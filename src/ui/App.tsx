@@ -19,6 +19,7 @@ import { loadPlan, savePlan } from '../state/storage';
 import { useI18n } from '../i18n/I18n';
 import type { MessageKey } from '../i18n/messages';
 import { demoPlan } from '../logic/demo';
+import { EMPTY_FILTER, type CourseFilter } from '../logic/filters';
 import { payloadFromHash } from '../logic/share';
 import { KEYS, loadWake, markTourSeen, tourSeen, write, type WakePrefs } from '../state/tools';
 import { AttendanceDialog } from './AttendanceDialog';
@@ -107,6 +108,7 @@ export function App() {
     friendPayload || tourSeen() || navigator.webdriver ? null : 'welcome',
   );
   const [wake, setWake] = useState<WakePrefs>(loadWake);
+  const [slotFilter, setSlotFilter] = useState<CourseFilter>(EMPTY_FILTER);
 
   useEffect(() => savePlan(plan), [plan]);
   useEffect(() => saveSettings(settings), [settings]);
@@ -360,6 +362,9 @@ export function App() {
             dispatch({ kind: 'select', course, sectionNumber: section.sectionNumber })
           }
           onClose={() => setSlot(null)}
+          filter={slotFilter}
+          onFilter={setSlotFilter}
+          catalog={catalog}
           onAddBlock={(label, end, bothSemesters) => {
             dispatch({
               kind: 'addBlock',

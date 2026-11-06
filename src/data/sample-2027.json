@@ -10,9 +10,18 @@
       "Course numbers, names, times, lecturers and rooms of non-demo groups come from a real Inbar schedule printout (05.11.2026).",
       "Only the session type 'Lecture' was shown by Inbar for some groups; other types are assumptions.",
       "Credits are placeholders, not real values.",
-      "Groups and courses marked isDemo are invented to exercise the planner (alternatives, linked exercises, yearly course, Friday)."
+      "Groups and courses marked isDemo are invented to exercise the planner (alternatives, linked exercises, yearly course, Friday).",
+      "Faculties, departments, categories (Olamot / General), languages and the online meeting exist only on demo courses, to exercise the filters."
     ]
   },
+  "faculties": [
+    { "id": "demo-hum", "name": "Humanities (demo)", "nameHe": "מדעי הרוח (הדגמה)" },
+    { "id": "demo-soc", "name": "Social Sciences (demo)", "nameHe": "מדעי החברה (הדגמה)" }
+  ],
+  "departments": [
+    { "id": "demo-writing", "name": "Writing Centre (demo)", "nameHe": "מרכז הכתיבה (הדגמה)", "facultyId": "demo-hum" },
+    { "id": "demo-media", "name": "Media Studies (demo)", "nameHe": "לימודי תקשורת (הדגמה)", "facultyId": "demo-soc" }
+  ],
   "courses": [
     {
       "courseId": "711081",
@@ -336,6 +345,10 @@
       "credits": 4,
       "term": "year",
       "isDemo": true,
+      "departmentId": "demo-writing",
+      "categories": ["general"],
+      "language": "en",
+      "academicHours": { "A": 3, "B": 3 },
       "sections": [
         {
           "sectionNumber": "01",
@@ -368,7 +381,7 @@
           "lecturer": "Demo tutor",
           "isDemo": true,
           "linkedTo": ["02"],
-          "schedule": [{ "day": 5, "startTime": "18:00", "endTime": "19:00", "building": "211", "room": "5" }]
+          "schedule": [{ "day": 5, "startTime": "18:00", "endTime": "19:00", "online": true }]
         }
       ]
     },
@@ -378,6 +391,9 @@
       "credits": 2,
       "term": "A",
       "isDemo": true,
+      "departmentId": "demo-media",
+      "categories": ["olamot"],
+      "language": "he",
       "sections": [
         {
           "sectionNumber": "01",
@@ -394,6 +410,8 @@
       "credits": 4,
       "term": "B",
       "isDemo": true,
+      "departmentId": "demo-media",
+      "language": "en",
       "sections": [
         {
           "sectionNumber": "01",

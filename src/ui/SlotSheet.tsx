@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { formatMinutes } from '../logic/time';
-import type { Course, Section, Semester } from '../data/types';
+import type { Catalog, Course, Section, Semester } from '../data/types';
 import { useI18n } from '../i18n/I18n';
 import type { TimeSpan } from '../logic/schedule';
 import type { Plan } from '../logic/selection';
+import { activeCount, buildFacets, matchFilter, type CourseFilter, type FilterGroup } from '../logic/filters';
 import type { SlotOption } from '../logic/slots';
+import { CourseFilters } from './CourseFilters';
 import { place, timeRange } from './format';
 
 interface Props {
@@ -17,12 +19,19 @@ interface Props {
   onClose: () => void;
   /** Занять это время личной блокировкой. */
   onAddBlock: (label: string, end: number, bothSemesters: boolean) => void;
+  /** Фильтр панели клетки (живёт в приложении, чтобы не вводить заново на каждой клетке). */
+  filter: CourseFilter;
+  onFilter: (f: CourseFilter) => void;
+  catalog: Pick<Catalog, 'faculties' | 'departments'>;
 }
+
+/** Семестр, день и время задаёт сама клетка. */
+const SLOT_HIDE: FilterGroup[] = ['terms', 'days', 'time'];
 
 const LAST_END = 22 * 60;
 
 /** Панель «что влезет в этот слот». На телефоне — снизу, на десктопе — карточка справа. */
-export function SlotSheet({ slot, semester, options, plan, onAdd, onSwitch, onClose, onAddBlock }: Props) {
+export function SlotSheet({ slot, semester, options, plan, onAdd, onSwitch, onClose, onAddBlock, filter, onFilter, catalog }: Props) {
   const { t, day, type, term } = useI18n();
   const closeRef = useRef<HTMLButtonElement>(null);
   const colors = new Map(plan.courses.map((c) => [c.courseId, c.color]));
@@ -30,6 +39,28 @@ export function SlotSheet({ slot, semester, options, plan, onAdd, onSwitch, onCl
   const [label, setLabel] = useState('');
   const [end, setEnd] = useState(slot.end);
   const [both, setBoth] = useState(true);
+  // Сначала фильтр, потом список. Если в этом часе ничего нет — сразу пустой список.
+  const [step, setStep] = useState<'filter' | 'list'>('filter');
+  const slotFilter: CourseFilter = { ...filter, query: '', terms: [], days: [], timeFrom: null, timeTo: null };
+  const facets = useMemo(
+    () => {
+      // Только группы, которые идут в этой клетке, — иначе фильтр предлагал бы то, чего здесь нет.
+      const byCourse = new Map<string, Course>();
+      for (const o of options) {
+        const c = byCourse.get(o.course.courseId) ?? { ...o.course, sections: [] };
+        c.sections = [...c.sections, o.section];
+        byCourse.set(c.courseId, c);
+      }
+      return buildFacets({ ...catalog, courses: [...byCourse.values()] });
+    },
+    [options, catalog],
+  );
+  const filtered = options.filter((o) => {
+    const sections = matchFilter(o.course, slotFilter, { catalog, slot: { semester, span: slot } });
+    return sections?.includes(o.section) ?? false;
+  });
+  const active = activeCount(slotFilter, SLOT_HIDE);
+  const shown = step === 'list' ? filtered : [];
   const ends: number[] = [];
   for (let m = slot.start + 60; m <= LAST_END; m += 30) ends.push(m);
 
@@ -37,6 +68,7 @@ export function SlotSheet({ slot, semester, options, plan, onAdd, onSwitch, onCl
     closeRef.current?.focus();
     setEnd(slot.end);
     setBlockOpen(false);
+    setStep('filter');
   }, [slot.day, slot.start, slot.end]);
 
   return (
@@ -99,9 +131,38 @@ export function SlotSheet({ slot, semester, options, plan, onAdd, onSwitch, onCl
 
       {options.length === 0 ? (
         <p className="empty slot-empty">{t('slot.empty')}</p>
+      ) : step === 'filter' ? (
+        <div className="slot-filter">
+          <strong className="slot-filter-title">
+            {t('filters.slotTitle', { when: `${day(slot.day, 'long')} ${timeRange(slot.start, slot.end)}` })}
+          </strong>
+          <p className="muted small">{t('filters.slotHint')}</p>
+          <CourseFilters facets={facets} filter={slotFilter} onChange={onFilter} catalog={catalog} hide={SLOT_HIDE} />
+          <div className="slot-filter-actions">
+            {active > 0 && (
+              <button type="button" className="btn btn-quiet" onClick={() => { onFilter({ ...slotFilter, categories: [], faculties: [], departments: [], types: [], places: [], credits: [], languages: [] }); setStep('list'); }}>
+                {t('filters.showAll', { n: options.length })}
+              </button>
+            )}
+            <button type="button" className="btn" onClick={() => setStep('list')}>
+              {t('filters.show', { n: filtered.length })}
+            </button>
+          </div>
+        </div>
       ) : (
+        <>
+        <div className="slot-list-head">
+          <span className="muted small">
+            {t('filters.count', { n: filtered.length })}
+            {active > 0 && ` · ${t('filters.active', { n: active })}`}
+          </span>
+          <button type="button" className="link-btn" onClick={() => setStep('filter')}>
+            {t('filters.change')}
+          </button>
+        </div>
+        {filtered.length === 0 && <p className="empty slot-empty">{t('filters.none')}</p>}
         <ul className="slot-list">
-          {options.map(({ course, section, meetings, inPlan, conflicts }) => {
+          {shown.map(({ course, section, meetings, inPlan, conflicts }) => {
             const color = colors.get(course.courseId);
             const where = place(section.schedule[0]?.building, section.schedule[0]?.room);
             return (
@@ -139,6 +200,7 @@ export function SlotSheet({ slot, semester, options, plan, onAdd, onSwitch, onCl
             );
           })}
         </ul>
+        </>
       )}
     </aside>
   );
