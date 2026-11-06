@@ -3,7 +3,7 @@ import type { Course } from '../data/types';
 import { courseMap } from '../data/catalog';
 import { autoPick } from './autopick';
 import { blockMeetings, isBlockId } from './blocks';
-import { BREAK_BUFFER_MIN, dayRoute, findSprints, walkMinutes } from './campus';
+import { BREAK_BUFFER_MIN, dayJourney, dayRoute, findSprints, walkMinutes } from './campus';
 import { weeklyCommuteHours } from './load';
 import { computeMisery, MISERY_WEIGHTS } from './misery';
 import { miseryDelta } from './preview';
@@ -202,6 +202,23 @@ describe('campus walking («Беги!»)', () => {
     expect(route.stops.map((s) => s.courseId)).toEqual(['a', 'b']);
     expect(route.legs).toHaveLength(1);
     expect(route.legs[0]!.run).toBe(false);
+  });
+
+  it('a day journey goes gate → classes → gate and sums the walking', () => {
+    const meetings = [m(4, '14:00', '16:00', '105', 'a'), m(4, '16:00', '18:00', '901', 'b')];
+    const j = dayJourney(meetings, 4, 'gate-40');
+    expect(j.stops.map((s) => s.courseId)).toEqual(['a', 'b']);
+    expect(j.arrive).toBe(walkMinutes('gate-40', '105'));
+    expect(j.leave).toBe(walkMinutes('901', 'gate-40'));
+    expect(j.totalWalk).toBe(j.arrive! + j.leave! + j.legs[0]!.walk!);
+  });
+
+  it('without a gate only the walks between classes count', () => {
+    const meetings = [m(4, '14:00', '16:00', '105', 'a'), m(4, '16:00', '18:00', '901', 'b')];
+    const j = dayJourney(meetings, 4);
+    expect(j.arrive).toBeNull();
+    expect(j.totalWalk).toBe(j.legs[0]!.walk);
+    expect(dayJourney(meetings, 2, 'gate-40')).toMatchObject({ stops: [], totalWalk: 0 });
   });
 
   it('the demo sprint course triggers a warning in the sample', () => {

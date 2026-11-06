@@ -1279,6 +1279,40 @@ h3 {
   gap: 6px;
 }
 
+.right-col {
+  min-width: 0;
+}
+
+/* Десктоп: «Сегодня» — компактная строка над индексом */
+@media (min-width: 900px) {
+  .pane-today .today {
+    margin-bottom: 12px;
+    padding: 10px 12px;
+  }
+
+  .pane-today .agenda {
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  }
+
+  .pane-today .agenda-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: 'time status' 'main main';
+    row-gap: 2px;
+  }
+
+  .pane-today .agenda-time {
+    grid-area: time;
+  }
+
+  .pane-today .agenda-status {
+    grid-area: status;
+  }
+
+  .pane-today .agenda-main {
+    grid-area: main;
+  }
+}
+
 .agenda-item {
   display: grid;
   grid-template-columns: 82px minmax(0, 1fr) auto;
@@ -1369,6 +1403,46 @@ h3 {
   }
 }
 
+/* Окно карты на десктопе: перетаскивание, размер, развернуть */
+@media (min-width: 900px) {
+  .map-head {
+    cursor: grab;
+    user-select: none;
+    touch-action: none;
+  }
+
+  .map-head:active {
+    cursor: grabbing;
+  }
+
+  .map-panel.floating {
+    inset: auto;
+  }
+
+  .map-panel.maximized {
+    inset: 16px;
+    width: auto;
+    height: auto;
+  }
+}
+
+.map-head-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.map-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+  touch-action: none;
+  background: linear-gradient(135deg, transparent 50%, var(--accent) 50% 58%, transparent 58% 70%, var(--accent) 70% 78%, transparent 78%);
+  opacity: 0.8;
+}
+
 .map-controls {
   display: flex;
   flex-wrap: wrap;
@@ -1403,7 +1477,7 @@ h3 {
 @media (min-width: 900px) {
   .map-body {
     grid-template-rows: none;
-    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.25fr) minmax(260px, 1fr);
   }
 }
 
@@ -1454,15 +1528,75 @@ h3 {
   stroke-width: 4px;
 }
 
-.map-leg {
+.map-leg line {
   stroke: var(--accent);
-  stroke-width: 6;
-  stroke-dasharray: 14 10;
+  stroke-width: 7;
+  stroke-dasharray: 16 10;
   stroke-linecap: round;
+  animation: map-flow 1.2s linear infinite;
 }
 
-.map-leg.run {
+.map-leg.run line {
   stroke: var(--warn);
+}
+
+@keyframes map-flow {
+  to {
+    stroke-dashoffset: -26;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-leg line {
+    animation: none;
+  }
+}
+
+.map-arrow {
+  fill: var(--accent);
+}
+
+.map-arrow.run {
+  fill: var(--warn);
+}
+
+.map-leg-label {
+  fill: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 5px;
+}
+
+.map-gate path {
+  fill: var(--surface);
+  stroke: var(--muted);
+  stroke-width: 2;
+}
+
+.map-gate text {
+  fill: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.map-gate.on path {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+
+.map-gate.on text {
+  fill: var(--accent);
+}
+
+.route-summary {
+  font-weight: 700;
+}
+
+.route-gate {
+  border-inline-start-color: var(--accent);
+  --cc: var(--accent);
 }
 
 .map-list {

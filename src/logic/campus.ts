@@ -46,11 +46,37 @@ export const WALK = {
  */
 export const BREAK_BUFFER_MIN = 15;
 
+/** Ворота кампуса (שער) — откуда день начинается и где заканчивается. Те же координаты схемы. */
+export const GATES: Record<string, [number, number]> = {
+  'gate-1': [701, 668],
+  'gate-2': [681, 652],
+  'gate-5': [549, 232],
+  'gate-10': [784, 118],
+  'gate-25': [406, 252],
+  'gate-30': [343, 950],
+  'gate-40': [748, 925],
+};
+
+export function isGate(id: string): boolean {
+  return id in GATES;
+}
+
+export function gateLabel(id: string): string {
+  return `Gate ${id.replace('gate-', '')}`;
+}
+
+/** Координаты здания или ворот на схеме. */
+export function pointOf(id?: string): [number, number] | undefined {
+  if (!id) return undefined;
+  return BUILDING_XY[id] ?? GATES[id];
+}
+
+/** Примерные минуты пешком между зданиями или воротами; null — точка неизвестна схеме. */
 export function walkMinutes(from?: string, to?: string): number | null {
   if (!from || !to) return null;
   if (from === to) return 0;
-  const a = BUILDING_XY[from];
-  const b = BUILDING_XY[to];
+  const a = pointOf(from);
+  const b = pointOf(to);
   if (!a || !b) return null;
   const px = Math.hypot(a[0] - b[0], a[1] - b[1]);
   return Math.round((px * WALK.metersPerPx * WALK.routeFactor) / WALK.metersPerMinute);
@@ -74,6 +100,28 @@ export interface RouteLeg {
   /** Минуты на переход (промежуток + BREAK_BUFFER_MIN); отрицательно при накладке. */
   available: number;
   run: boolean;
+}
+
+export interface DayJourney {
+  stops: PlacedMeeting[];
+  legs: RouteLeg[];
+  /** Ворота → первая пара (если ворота выбраны и здание известно). */
+  arrive: number | null;
+  /** Последняя пара → ворота. */
+  leave: number | null;
+  /** Сумма известных минут пешком за день, включая путь от ворот и обратно. */
+  totalWalk: number;
+}
+
+/** Весь день от входа до выхода: ворота → пара 1 → пара 2 → … → ворота. */
+export function dayJourney(meetings: readonly PlacedMeeting[], day: Day, gate?: string): DayJourney {
+  const { stops, legs } = dayRoute(meetings, day);
+  const first = stops[0];
+  const last = stops[stops.length - 1];
+  const arrive = gate && first ? walkMinutes(gate, first.building) : null;
+  const leave = gate && last ? walkMinutes(last.building, gate) : null;
+  const totalWalk = [arrive, leave, ...legs.map((l) => l.walk)].reduce<number>((sum, w) => sum + (w ?? 0), 0);
+  return { stops, legs, arrive, leave, totalWalk };
 }
 
 /** Маршрут дня: занятия по порядку и переходы между соседними. Блокировки не входят. */

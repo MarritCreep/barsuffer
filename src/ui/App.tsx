@@ -149,9 +149,6 @@ export function App() {
 
       <main className="layout">
         <div className="left-col">
-          <section className="pane pane-today" aria-label="Today">
-            <TodayPanel now={now} meetingsFor={busyFor} />
-          </section>
           <section className="pane pane-courses" aria-label="Courses">
             <CoursePanel
               catalog={catalog}
@@ -166,6 +163,11 @@ export function App() {
           </section>
         </div>
 
+        <div className="right-col">
+        {/* На десктопе «Сегодня» над индексом, чтобы всегда было видно; на телефоне — своя вкладка. */}
+        <section className="pane pane-today" aria-label="Today">
+          <TodayPanel now={now} meetingsFor={busyFor} />
+        </section>
         <section className="pane pane-week" aria-label="Week">
           <StatsBar
             semester={semester}
@@ -210,6 +212,7 @@ export function App() {
             sprints={sprints}
           />
         </section>
+        </div>
       </main>
 
       {slot && tab === 'week' && (

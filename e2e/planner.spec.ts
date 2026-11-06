@@ -228,6 +228,13 @@ test('campus map: route for a day, Run! warning, empty day', async ({ page }) =>
   const map = page.getByRole('dialog', { name: 'Campus map' });
   await expect(map.locator('.route-stop')).toHaveCount(2);
   await expect(map.locator('.route-leg.run')).toContainText('Run!');
+  await expect(map.locator('.map-leg line')).toHaveCount(1);
+
+  // Весь день: ворота → пара 1 → пара 2 → ворота.
+  await map.getByRole('combobox', { name: 'Campus gate' }).selectOption('gate-40');
+  await expect(map.locator('.route-summary')).toContainText('Gate 40 → 105 → 901 → Gate 40');
+  await expect(map.locator('.map-leg line')).toHaveCount(3);
+  await expect(map.getByText('Leave via Gate 40')).toBeVisible();
   await shot(page, '15-map');
 
   await map.getByRole('tab', { name: 'Fri' }).click();
@@ -236,6 +243,44 @@ test('campus map: route for a day, Run! warning, empty day', async ({ page }) =>
   await expect(map.locator('.map-mark')).toHaveCount(2);
   await map.getByRole('button', { name: 'Close map' }).click();
   await expect(map).toHaveCount(0);
+});
+
+test('map window can be moved, resized and maximized on desktop', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'on phones the map is full screen');
+  await page.getByRole('button', { name: 'Open campus map' }).click();
+  const map = page.getByRole('dialog', { name: 'Campus map' });
+  const before = (await map.boundingBox())!;
+
+  // Перетащить за заголовок.
+  const head = map.locator('.map-head');
+  const h = (await head.boundingBox())!;
+  await page.mouse.move(h.x + 40, h.y + 20);
+  await page.mouse.down();
+  await page.mouse.move(h.x - 200, h.y - 100, { steps: 5 });
+  await page.mouse.up();
+  const moved = (await map.boundingBox())!;
+  expect(moved.x).toBeLessThan(before.x - 150);
+  expect(moved.y).toBeLessThan(before.y - 50);
+
+  // Растянуть за правый нижний угол.
+  const grip = (await map.locator('.map-resize').boundingBox())!;
+  await page.mouse.move(grip.x + 10, grip.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(grip.x + 110, grip.y + 60, { steps: 5 });
+  await page.mouse.up();
+  const resized = (await map.boundingBox())!;
+  expect(resized.width).toBeGreaterThan(moved.width + 80);
+
+  // Положение запоминается.
+  await map.getByRole('button', { name: 'Close map' }).click();
+  await page.getByRole('button', { name: 'Open campus map' }).click();
+  const reopened = (await map.boundingBox())!;
+  expect(Math.round(reopened.x)).toBe(Math.round(resized.x));
+
+  await map.getByRole('button', { name: 'Maximize map' }).click();
+  const max = (await map.boundingBox())!;
+  expect(max.width).toBeGreaterThan(1200);
+  await map.getByRole('button', { name: 'Restore map size' }).click();
 });
 
 test('real sample schedule renders with conflicts, theme toggles', async ({ page, isMobile }) => {
