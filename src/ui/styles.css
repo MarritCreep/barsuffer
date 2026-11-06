@@ -1886,10 +1886,11 @@ h3 {
   box-shadow: var(--shadow);
 }
 
+/* Граница кампуса из OpenStreetMap. */
 .map-campus {
-  fill: var(--surface-2);
-  stroke: var(--surface-2);
-  stroke-width: 70;
+  fill: color-mix(in srgb, var(--c2) 7%, var(--surface-2));
+  stroke: color-mix(in srgb, var(--c2) 45%, var(--border));
+  stroke-width: 3;
   stroke-linejoin: round;
 }
 
@@ -1901,8 +1902,29 @@ h3 {
 
 .map-building text {
   fill: var(--muted);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--surface-2);
+  stroke-width: 3px;
+}
+
+/* Контуры зданий из OpenStreetMap; здания без контура — кружок пунктиром (место оценено по схеме). */
+.map-shape {
+  fill: color-mix(in srgb, var(--text) 14%, var(--surface-2));
+  stroke: color-mix(in srgb, var(--text) 35%, var(--surface-2));
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.map-shape.numbered {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--surface-2));
+  stroke: color-mix(in srgb, var(--accent) 55%, var(--surface-2));
+}
+
+.map-building.estimated circle {
+  stroke-dasharray: 3 2;
 }
 
 .map-mark circle {

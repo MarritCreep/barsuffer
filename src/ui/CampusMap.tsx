@@ -1,15 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { OSM_ATTRIBUTION } from '../data/campusGeo';
+import { ESTIMATED_BUILDINGS } from '../data/campusMap';
 import { DAYS, type Day, type Semester } from '../data/types';
 import { useI18n, type Translator } from '../i18n/I18n';
 import {
   BREAK_BUFFER_MIN,
-  BUILDING_XY,
+  BUILDING_OUTLINES,
+  BUILDING_VIEW,
+  CAMPUS_OUTLINE,
   dayJourney,
   GATES,
   gateNumber,
   isGate,
   pointOf,
+  viewOf,
   walkMinutes,
 } from '../logic/campus';
 import { CAFES } from '../logic/coffee';
@@ -62,9 +66,15 @@ const WINDOW_KEY = 'barsuffer:map-window:v1';
 const MIN_W = 420;
 const MIN_H = 380;
 
-const BUILDINGS = Object.entries(BUILDING_XY);
-const ALL_POINTS: XY[] = [...BUILDINGS.map(([, p]) => p), ...Object.values(GATES)];
+// Карта в метрах, повёрнутая как официальная схема кампуса (viewOf): граница и контуры зданий из OSM.
+const BUILDINGS = Object.entries(BUILDING_VIEW);
+const ESTIMATED = new Set(ESTIMATED_BUILDINGS);
+const ALL_POINTS: XY[] = [...CAMPUS_OUTLINE, ...BUILDINGS.map(([, p]) => p), ...Object.values(GATES)];
 const PAD = 40;
+const toPoints = (poly: XY[]) => poly.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+const OUTLINE = toPoints(CAMPUS_OUTLINE);
+const SHAPES = BUILDING_OUTLINES.map((b, i) => ({ key: b.id ?? `s${i}`, id: b.id, points: toPoints(b.poly) }));
+const CAFE_VIEW = CAFES.map((c) => ({ ...c, xy: viewOf(c.pos) }));
 
 function bbox(points: XY[], pad: number) {
   const xs = points.map((p) => p[0]);
@@ -89,27 +99,6 @@ function fitView(points: XY[]) {
   const cy = b.y + b.h / 2;
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 }
-
-/** Выпуклая оболочка зданий — контур «кампуса» на нашей схеме. */
-function hull(points: XY[]): XY[] {
-  const p = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const cross = (o: XY, a: XY, b: XY) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const build = (pts: XY[]) => {
-    const out: XY[] = [];
-    for (const pt of pts) {
-      while (out.length >= 2 && cross(out[out.length - 2]!, out[out.length - 1]!, pt) <= 0) out.pop();
-      out.push(pt);
-    }
-    return out;
-  };
-  const lower = build(p);
-  const upper = build([...p].reverse());
-  return [...lower.slice(0, -1), ...upper.slice(0, -1)];
-}
-
-const HULL = hull(BUILDINGS.map(([, p]) => p))
-  .map(([x, y]) => `${x},${y}`)
-  .join(' ');
 
 /** Отрезок между двумя точками, укороченный с концов — чтобы стрелка не пряталась под кружком. */
 function trimmed(a: XY, b: XY, startCut: number, endCut: number) {
@@ -432,13 +421,17 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
             </marker>
           </defs>
 
-          <polygon className="map-campus" points={HULL} />
+          <polygon className="map-campus" points={OUTLINE} />
+
+          {SHAPES.map((s) => (
+            <polygon key={s.key} className={`map-shape ${s.id ? 'numbered' : ''}`} points={s.points} />
+          ))}
 
           {BUILDINGS.map(([id, [x, y]]) =>
             marks.has(id) ? null : (
-              <g key={id} className="map-building">
-                <circle cx={x} cy={y} r={7} />
-                <text x={x + 10} y={y + 4}>
+              <g key={id} className={`map-building ${ESTIMATED.has(id) ? 'estimated' : ''}`}>
+                {ESTIMATED.has(id) && <circle cx={x} cy={y} r={7} />}
+                <text x={x} y={y + 4}>
                   {id}
                 </text>
               </g>
@@ -454,7 +447,7 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
             </g>
           ))}
 
-          {CAFES.map((c) => (
+          {CAFE_VIEW.map((c) => (
             <g key={c.id} className="map-cafe">
               <title>{t('map.cafe', { b: c.near })}</title>
               <circle cx={c.xy[0]} cy={c.xy[1]} r={9} />
@@ -487,7 +480,7 @@ export function CampusMap({ meetingsFor, initialSemester, initialDay, hidden, ga
           })}
 
           {[...marks.entries()].map(([id, mark]) => {
-            const [x, y] = BUILDING_XY[id]!;
+            const [x, y] = BUILDING_VIEW[id]!;
             return (
               <g key={id} className={`map-mark c${mark.color}`}>
                 <circle cx={x} cy={y} r={16} />

@@ -1,36 +1,15 @@
-import { BUILDING_LATLON } from '../data/campusGeo';
+import { BUILDING_POS, BUILDING_SHAPES, CAMPUS_BOUNDARY, GATE_POS, VIEW_ROTATION_DEG, type XY } from '../data/campusMap';
 import type { Day } from '../data/types';
 import type { PlacedMeeting } from './schedule';
 
 /**
  * «Беги!» — ЭКСПЕРИМЕНТ. Примерное время пешком между зданиями кампуса.
  *
- * BUILDING_XY — центры номеров зданий на схеме кампуса (картинка 1224×1112 px), снятые на глаз;
- * по ним рисуется наша схема. Расстояния считаются в метрах: по координатам OpenStreetMap,
- * где они есть, иначе по схеме, пересчитанной в метры (см. metersOf).
+ * Все места — в метрах (восток, север) из `src/data/campusMap.ts`: граница кампуса и контуры зданий из
+ * OpenStreetMap, номера зданий без номера в OSM сопоставлены по официальной схеме кампуса.
+ * Для показа карта повёрнута как официальная схема (`viewOf`), единица экрана — метр.
  */
-export const BUILDING_XY: Record<string, [number, number]> = {
-  '101': [380, 1097], '102': [483, 1053], '103': [359, 1033], '104': [428, 1027],
-  '105': [540, 1005], '106': [580, 1007], '107': [634, 982], '108': [669, 938],
-  '109': [518, 971], '110': [586, 951],
-  '201': [457, 988], '202': [480, 940], '203': [525, 918], '204': [428, 973],
-  '205': [411, 954], '206': [443, 887], '207': [508, 891], '208': [399, 931],
-  '209': [397, 895], '210': [518, 862], '211': [480, 851], '212': [456, 815],
-  '213': [451, 779], '214': [362, 862], '215': [398, 839], '216': [410, 727],
-  '217': [397, 666],
-  '300': [695, 857], '301': [668, 873], '302': [746, 848], '303': [733, 814],
-  '304': [613, 850], '305': [709, 775], '306': [681, 719], '307': [585, 807],
-  '401': [528, 788], '402': [553, 733], '403': [529, 698], '404': [503, 659],
-  '405': [579, 664], '407': [670, 605], '408': [452, 659], '409': [463, 628],
-  '410': [531, 598], '411': [600, 578],
-  '501': [400, 585], '502': [428, 470], '503': [499, 524], '504': [562, 503],
-  '505': [543, 434], '506': [553, 369], '507': [503, 363], '508': [407, 369],
-  '509': [393, 336], '510': [411, 309],
-  '604': [487, 474], '605': [451, 481], '606': [400, 469],
-  '801': [460, 347], '802': [465, 256],
-  '901': [533, 113], '902': [566, 81], '905': [484, 83], '906': [536, 52],
-  '1401': [720, 228], '1501': [692, 10], '1502': [534, 274],
-};
+export type { XY };
 
 /** Допущения о ходьбе — их стоит проверить ногами. */
 export const WALK = {
@@ -40,78 +19,12 @@ export const WALK = {
   metersPerMinute: 70,
 };
 
-// ---------- Реальные метры ----------
-// Здания, которые есть в OpenStreetMap, — по настоящим координатам. Остальное (здания без
-// номера в OSM, ворота, кафе) — по схеме, пересчитанной в метры аффинным преобразованием,
-// подобранным методом наименьших квадратов по зданиям, известным и там, и там.
+// ---------- Метры и вид ----------
 
-type XY = [number, number];
-const LAT0 = 32.069;
-const LON0 = 34.843;
-const M_PER_DEG_LAT = 110_574;
-const M_PER_DEG_LON = 111_320 * Math.cos((LAT0 * Math.PI) / 180);
-
-/** Широта/долгота → метры (восток, север) от центра кампуса. */
-export function latLonToMeters([lat, lon]: XY): XY {
-  return [(lon - LON0) * M_PER_DEG_LON, (lat - LAT0) * M_PER_DEG_LAT];
-}
-
-function solve3(m: number[][], v: number[]): number[] {
-  const det = (a: number[][]) =>
-    a[0]![0]! * (a[1]![1]! * a[2]![2]! - a[1]![2]! * a[2]![1]!) -
-    a[0]![1]! * (a[1]![0]! * a[2]![2]! - a[1]![2]! * a[2]![0]!) +
-    a[0]![2]! * (a[1]![0]! * a[2]![1]! - a[1]![1]! * a[2]![0]!);
-  const d = det(m);
-  return [0, 1, 2].map((col) => det(m.map((row, r) => row.map((x, c) => (c === col ? v[r]! : x)))) / d);
-}
-
-const ANCHORS = Object.keys(BUILDING_LATLON).filter((id) => BUILDING_XY[id]);
-
-/** Коэффициенты x' = a·px + b·py + c (и так же для y'), подобранные по опорным зданиям. */
-const AFFINE = (() => {
-  const m = [
-    [0, 0, 0],
-    [0, 0, 0],
-    [0, 0, 0],
-  ];
-  const vx = [0, 0, 0];
-  const vy = [0, 0, 0];
-  for (const id of ANCHORS) {
-    const [px, py] = BUILDING_XY[id]!;
-    const [mx, my] = latLonToMeters(BUILDING_LATLON[id]!);
-    const row = [px, py, 1];
-    for (let i = 0; i < 3; i++) {
-      for (let j = 0; j < 3; j++) m[i]![j]! += row[i]! * row[j]!;
-      vx[i]! += row[i]! * mx;
-      vy[i]! += row[i]! * my;
-    }
-  }
-  return { x: solve3(m, vx), y: solve3(m, vy) };
-})();
-
-/** Точка схемы → метры на местности (по подобранному преобразованию). */
-export function metersOfPx([px, py]: XY): XY {
-  const [a, b, c] = AFFINE.x as [number, number, number];
-  const [d, e, f] = AFFINE.y as [number, number, number];
-  return [a * px + b * py + c, d * px + e * py + f];
-}
-
-/** Средняя ошибка схемы после пересчёта (м) — насколько схема похожа на реальность. */
-export const FIT_RMS_METERS = Math.sqrt(
-  ANCHORS.reduce((s, id) => {
-    const [x, y] = metersOfPx(BUILDING_XY[id]!);
-    const [rx, ry] = latLonToMeters(BUILDING_LATLON[id]!);
-    return s + (x - rx) ** 2 + (y - ry) ** 2;
-  }, 0) / ANCHORS.length,
-);
-
-/** Положение здания или ворот в метрах: реальное, если есть в OSM, иначе пересчёт схемы. */
+/** Положение здания или ворот в метрах (восток, север). */
 export function metersOf(id?: string): XY | undefined {
   if (!id) return undefined;
-  const real = BUILDING_LATLON[id];
-  if (real) return latLonToMeters(real);
-  const px = BUILDING_XY[id] ?? GATES[id];
-  return px ? metersOfPx(px) : undefined;
+  return BUILDING_POS[id] ?? GATE_POS[id];
 }
 
 /** Метры пешком между двумя точками на местности (с поправкой на непрямые дорожки). */
@@ -119,30 +32,52 @@ export function walkBetween(a: XY, b: XY): number {
   return Math.hypot(a[0] - b[0], a[1] - b[1]) * WALK.routeFactor;
 }
 
+const ROT = (VIEW_ROTATION_DEG * Math.PI) / 180;
+
+/**
+ * Метры → координаты экрана (тоже метры, y вниз), повёрнутые как официальная схема кампуса:
+ * «вверх» на экране — направление, отклонённое от севера на VIEW_ROTATION_DEG по часовой.
+ */
+export function viewOf([e, n]: XY): XY {
+  const up = e * Math.sin(ROT) + n * Math.cos(ROT);
+  const right = e * Math.cos(ROT) - n * Math.sin(ROT);
+  return [right, -up];
+}
+
+/** Граница кампуса на экране. */
+export const CAMPUS_OUTLINE: XY[] = CAMPUS_BOUNDARY.map(viewOf);
+
+/** Контуры зданий на экране. */
+export const BUILDING_OUTLINES: { id?: string; poly: XY[] }[] = BUILDING_SHAPES.map((b) => ({
+  ...(b.id ? { id: b.id } : {}),
+  poly: b.poly.map(viewOf),
+}));
+
+/** Центры зданий на экране, по номеру. */
+export const BUILDING_VIEW: Record<string, XY> = Object.fromEntries(
+  Object.entries(BUILDING_POS).map(([id, p]) => [id, viewOf(p)]),
+);
+
 /**
  * Перерыв, который реально есть между «стыкующимися» парами: пара 10:00–12:00
  * длится около полутора часов чистого времени, поэтому считаем ~15 минут на переход.
  */
 export const BREAK_BUFFER_MIN = 15;
 
-/** Ворота кампуса (שער) — откуда день начинается и где заканчивается. Те же координаты схемы. */
-export const GATES: Record<string, [number, number]> = {
-  'gate-1': [701, 668],
-  'gate-2': [681, 652],
-  'gate-5': [549, 232],
-  'gate-10': [784, 118],
-  'gate-25': [406, 252],
-  'gate-30': [343, 950],
-  'gate-40': [748, 925],
-};
-
-export function isGate(id: string): boolean {
-  return id in GATES;
-}
-
 /** Номер ворот: 'gate-40' → '40'. Подпись («Gate 40», «Ворота 40», «שער 40») делает интерфейс. */
 export function gateNumber(id: string): string {
   return id.replace('gate-', '');
+}
+
+/** Ворота кампуса (שער) на экране — откуда день начинается и где заканчивается. */
+export const GATES: Record<string, XY> = Object.fromEntries(
+  Object.entries(GATE_POS)
+    .sort(([a], [b]) => Number(gateNumber(a)) - Number(gateNumber(b)))
+    .map(([id, p]) => [id, viewOf(p)]),
+);
+
+export function isGate(id: string): boolean {
+  return id in GATE_POS;
 }
 
 /** Английская подпись ворот (для старого кода и тестов); в интерфейсе — t('map.gate'). */
@@ -150,10 +85,10 @@ export function gateLabel(id: string): string {
   return `Gate ${gateNumber(id)}`;
 }
 
-/** Координаты здания или ворот на схеме. */
-export function pointOf(id?: string): [number, number] | undefined {
+/** Координаты здания или ворот на экране карты. */
+export function pointOf(id?: string): XY | undefined {
   if (!id) return undefined;
-  return BUILDING_XY[id] ?? GATES[id];
+  return BUILDING_VIEW[id] ?? GATES[id];
 }
 
 /** Примерные метры пешком между зданиями или воротами; null — точка неизвестна схеме. */

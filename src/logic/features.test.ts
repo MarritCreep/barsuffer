@@ -3,7 +3,18 @@ import type { Course } from '../data/types';
 import { courseMap } from '../data/catalog';
 import { autoPick } from './autopick';
 import { blockMeetings, isBlockId } from './blocks';
-import { BREAK_BUFFER_MIN, dayJourney, dayRoute, findSprints, FIT_RMS_METERS, walkMeters, walkMinutes } from './campus';
+import {
+  BREAK_BUFFER_MIN,
+  BUILDING_OUTLINES,
+  CAMPUS_OUTLINE,
+  dayJourney,
+  dayRoute,
+  findSprints,
+  isGate,
+  metersOf,
+  walkMeters,
+  walkMinutes,
+} from './campus';
 import { weeklyCommuteHours } from './load';
 import { computeMisery, MISERY_WEIGHTS } from './misery';
 import { miseryDelta } from './preview';
@@ -194,8 +205,14 @@ describe('campus walking («Беги!»)', () => {
     expect(findSprints([m(4, '10:00', '12:00', '105', 'a'), m(4, '13:00', '14:00', '901', 'b')])).toEqual([]);
   });
 
-  it('real coordinates: the schematic map matches OpenStreetMap within a few dozen metres', () => {
-    expect(FIT_RMS_METERS).toBeLessThan(20);
+  it('real coordinates: campus outline, building footprints, north campus and all gates', () => {
+    expect(CAMPUS_OUTLINE.length).toBeGreaterThan(20);
+    expect(BUILDING_OUTLINES.filter((b) => b.id).length).toBeGreaterThan(50);
+    for (const id of ['1002', '1004', '1102', '1105', '503', '604', '105']) expect(metersOf(id), id).toBeDefined();
+    for (const g of ['gate-1', 'gate-2', 'gate-5', 'gate-10', 'gate-15', 'gate-20', 'gate-25', 'gate-30', 'gate-40']) expect(isGate(g), g).toBe(true);
+    // Северный кампус: от инженерного 1102 до 503 — около полукилометра пешком.
+    expect(walkMeters('1102', '503')).toBeGreaterThan(400);
+    expect(walkMeters('1102', '503')).toBeLessThan(900);
     // 101 → 901 по прямой ≈ 920 м (OSM), с поправкой на дорожки ≈ 1,2 км.
     expect(walkMeters('101', '901')).toBeGreaterThan(1100);
     expect(walkMeters('101', '901')).toBeLessThan(1300);

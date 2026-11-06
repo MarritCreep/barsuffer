@@ -1,10 +1,11 @@
+import { CAFE_POS } from '../data/campusMap';
 import type { Day } from '../data/types';
-import { metersOf, metersOfPx, WALK, walkBetween } from './campus';
+import { metersOf, WALK, walkBetween, type XY } from './campus';
 import type { PlacedMeeting } from './schedule';
 
 /**
  * «Кофе в окне» — ЭКСПЕРИМЕНТ. Точки еды и кофе сняты на глаз со схемы кампуса
- * (значки «מסעדה / בית קפה»), в тех же координатах, что и здания.
+ * (значки «מסעדה / בית קפה»); положение — в метрах, как у зданий (`CAFE_POS`).
  */
 export const CAFES: {
   id: string;
@@ -12,17 +13,12 @@ export const CAFES: {
   label: string;
   /** Ближайшее здание (номер не переводится). */
   near: string;
-  xy: [number, number];
-}[] = [
-  { id: 'cafe-905', label: 'Café near 905', near: '905', xy: [483, 103] },
-  { id: 'cafe-604', label: 'Café near 604', near: '604', xy: [480, 494] },
-  { id: 'cafe-409', label: 'Café near 409', near: '409', xy: [437, 627] },
-  { id: 'cafe-404', label: 'Café near 404', near: '404', xy: [531, 659] },
-  { id: 'cafe-306', label: 'Café near 306', near: '306', xy: [662, 706] },
-  { id: 'cafe-402', label: 'Café near 402', near: '402', xy: [513, 728] },
-  { id: 'cafe-212', label: 'Café near 212', near: '212', xy: [437, 800] },
-  { id: 'cafe-107', label: 'Café near 107', near: '107', xy: [641, 1012] },
-];
+  /** Метры (восток, север). */
+  pos: XY;
+}[] = Object.entries(CAFE_POS).map(([id, pos]) => {
+  const near = id.replace('cafe-', '');
+  return { id, label: `Café near ${near}`, near, pos };
+});
 
 /** Окно короче этого — не повод идти за кофе. */
 export const MIN_COFFEE_GAP = 60;
@@ -61,7 +57,7 @@ export function coffeeGaps(meetings: readonly PlacedMeeting[]): CoffeeGap[] {
     if (a && b) {
       let bestTotal = Infinity;
       for (const cafe of CAFES) {
-        const c = metersOfPx(cafe.xy);
+        const c = cafe.pos;
         const t = minutes(walkBetween(a, c));
         const r = minutes(walkBetween(c, b));
         if (t + r < bestTotal) {
